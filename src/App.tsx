@@ -3472,42 +3472,42 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
           <button 
             onClick={() => setView('overview')}
             className={cn(
-              "flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all",
+              "flex-1 py-3 px-2 sm:px-4 rounded-xl flex items-center justify-center gap-1.5 sm:gap-2 transition-all",
               view === 'overview' ? "bg-white/10 text-white shadow-xl" : "text-white/40 hover:text-white/60"
             )}
           >
             <LayoutDashboard className="w-4 h-4" />
-            <span className="text-sm font-bold">Resumo</span>
+            <span className="text-xs sm:text-sm font-bold">Home</span>
           </button>
           <button
             onClick={() => setView('list')}
             className={cn(
-              "flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all",
+              "flex-1 py-3 px-2 sm:px-4 rounded-xl flex items-center justify-center gap-1.5 sm:gap-2 transition-all",
               view === 'list' ? "bg-white/10 text-white shadow-xl" : "text-white/40 hover:text-white/60"
             )}
           >
             <List className="w-4 h-4" />
-            <span className="text-sm font-bold">Lançamentos</span>
+            <span className="text-xs sm:text-sm font-bold">Lista</span>
           </button>
           <button
             onClick={() => setView('month')}
             className={cn(
-              "flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all",
+              "flex-1 py-3 px-2 sm:px-4 rounded-xl flex items-center justify-center gap-1.5 sm:gap-2 transition-all",
               view === 'month' ? "bg-white/10 text-white shadow-xl" : "text-white/40 hover:text-white/60"
             )}
           >
             <Calendar className="w-4 h-4" />
-            <span className="text-sm font-bold">Mês</span>
+            <span className="text-xs sm:text-sm font-bold">Mês</span>
           </button>
           <button
             onClick={() => setView('bills')}
             className={cn(
-              "flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all",
+              "flex-1 py-3 px-2 sm:px-4 rounded-xl flex items-center justify-center gap-1.5 sm:gap-2 transition-all",
               view === 'bills' ? "bg-white/10 text-white shadow-xl" : "text-white/40 hover:text-white/60"
             )}
           >
             <Wallet className="w-4 h-4" />
-            <span className="text-sm font-bold">Contas</span>
+            <span className="text-xs sm:text-sm font-bold">Contas</span>
           </button>
         </div>
 
