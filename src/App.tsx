@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "@/src/lib/motion-stub";
-import { Bell, Plus, LayoutDashboard, List, LogOut, Search, Filter, Camera, X, ChevronDown, Settings, Trash2, Menu, Edit2, AlertCircle, Download, Paperclip, User as UserIcon, Check, Sun, Moon, Calendar } from "lucide-react";
+import { Bell, Plus, LayoutDashboard, List, LogOut, Search, Filter, Camera, X, ChevronDown, ChevronLeft, ChevronRight, Settings, Trash2, Menu, Edit2, AlertCircle, Download, Paperclip, User as UserIcon, Check, Sun, Moon, Calendar } from "lucide-react";
 import { cn, formatCurrency } from "@/src/lib/utils";
 import { User, Expense } from "@/src/types";
 import { supabase } from "@/src/lib/supabase";
@@ -2523,6 +2523,8 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [view, setView] = useState<'overview' | 'list' | 'month'>('overview');
+  const [monthDrillMonth, setMonthDrillMonth] = useState<{ year: number; month: number; label: string } | null>(null);
+  const [monthDrillCategory, setMonthDrillCategory] = useState<string | null>(null);
 
   // Conexão: banner offline + sincronização da fila quando a rede volta
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -2842,6 +2844,46 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     [monthlyTotals]
   );
 
+  const drillCategories = useMemo(() => {
+    if (!monthDrillMonth) return [];
+    const map = new Map<string, { name: string; total: number; count: number; color: string }>();
+    expenses.forEach(e => {
+      const d = new Date(e.expenseDate + 'T12:00:00');
+      if (isNaN(d.getTime())) return;
+      if (d.getFullYear() !== monthDrillMonth.year || d.getMonth() !== monthDrillMonth.month) return;
+      const catObj = categories.find(c => c.name === e.category);
+      const color = catObj?.color ?? '#94a3b8';
+      const existing = map.get(e.category);
+      if (existing) {
+        existing.total += e.value;
+        existing.count += 1;
+      } else {
+        map.set(e.category, { name: e.category, total: e.value, count: 1, color });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [expenses, monthDrillMonth, categories]);
+
+  const drillExpenses = useMemo(() => {
+    if (!monthDrillMonth || !monthDrillCategory) return [];
+    return expenses
+      .filter(e => {
+        const d = new Date(e.expenseDate + 'T12:00:00');
+        if (isNaN(d.getTime())) return false;
+        return d.getFullYear() === monthDrillMonth.year
+          && d.getMonth() === monthDrillMonth.month
+          && e.category === monthDrillCategory;
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [expenses, monthDrillMonth, monthDrillCategory]);
+
+  useEffect(() => {
+    if (view !== 'month') {
+      setMonthDrillMonth(null);
+      setMonthDrillCategory(null);
+    }
+  }, [view]);
+
   // useScroll/useTransform removidos — parallax JS causava jank no mobile
 
   // Debounce da busca — evita recalcular lista a cada tecla
@@ -3083,63 +3125,274 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
               className="space-y-6"
             >
               <GlassCard className="p-6 sm:p-8">
-                <div className="flex justify-between items-center mb-6 px-2">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    Totais por Mês
-                  </h3>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/20">
-                    {monthlyTotals.length} {monthlyTotals.length === 1 ? 'mês' : 'meses'}
-                  </span>
-                </div>
-
-                {monthlyTotals.length === 0 ? (
-                  <div className="py-12 text-center">
-                    <p className="text-sm font-bold text-white/30">Nenhum lançamento ainda</p>
-                    <p className="text-[11px] text-white/20 mt-1">Adicione seu primeiro gasto pra ver os totais mensais</p>
+                {/* Breadcrumb + botão voltar */}
+                {(monthDrillMonth || monthDrillCategory) && (
+                  <div className="flex items-center gap-3 mb-5">
+                    <button
+                      onClick={() => {
+                        if (monthDrillCategory) setMonthDrillCategory(null);
+                        else setMonthDrillMonth(null);
+                      }}
+                      className="p-2 glass rounded-xl hover:bg-white/5 transition-colors active:scale-95"
+                      aria-label="Voltar"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-white/60" />
+                    </button>
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider min-w-0">
+                      <button
+                        onClick={() => { setMonthDrillMonth(null); setMonthDrillCategory(null); }}
+                        className="text-white/40 hover:text-white/70 transition-colors truncate"
+                      >
+                        Meses
+                      </button>
+                      {monthDrillMonth && (
+                        <>
+                          <ChevronRight className="w-3 h-3 text-white/20 shrink-0" />
+                          <button
+                            onClick={() => setMonthDrillCategory(null)}
+                            className={cn(
+                              "truncate transition-colors",
+                              monthDrillCategory ? "text-white/40 hover:text-white/70" : "text-white"
+                            )}
+                          >
+                            {monthDrillMonth.label}
+                          </button>
+                        </>
+                      )}
+                      {monthDrillCategory && (
+                        <>
+                          <ChevronRight className="w-3 h-3 text-white/20 shrink-0" />
+                          <span className="text-white truncate">{monthDrillCategory}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {monthlyTotals.map(m => {
-                      const pct = monthlyGrandTotal > 0 ? (m.total / monthlyGrandTotal) * 100 : 0;
-                      return (
-                        <div key={`${m.year}-${m.month}`} className="glass rounded-2xl p-4 sm:p-5">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold text-white truncate">{m.label}</p>
-                              <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider mt-0.5">
-                                {m.count} {m.count === 1 ? 'lançamento' : 'lançamentos'}
-                              </p>
-                            </div>
-                            <div className="text-right shrink-0 ml-3">
-                              <p className="text-lg sm:text-xl font-light tracking-tight text-white">
-                                {formatCurrency(m.total).split(',')[0]}
-                                <span className="text-xs opacity-30">,{formatCurrency(m.total).split(',')[1]}</span>
-                              </p>
-                              <p className="text-[10px] font-bold text-white/30 mt-0.5">{pct.toFixed(1)}%</p>
-                            </div>
-                          </div>
-                          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                            <div
-                              className="h-full btn-gradient rounded-full transition-all"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
+                )}
+
+                {/* NÍVEL 1: Lista de meses */}
+                {!monthDrillMonth && (
+                  <>
+                    <div className="flex justify-between items-center mb-6 px-2">
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                        Totais por Mês
+                      </h3>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/20">
+                        {monthlyTotals.length} {monthlyTotals.length === 1 ? 'mês' : 'meses'}
+                      </span>
+                    </div>
+
+                    {monthlyTotals.length === 0 ? (
+                      <div className="py-12 text-center">
+                        <p className="text-sm font-bold text-white/30">Nenhum lançamento ainda</p>
+                        <p className="text-[11px] text-white/20 mt-1">Adicione seu primeiro gasto pra ver os totais mensais</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {monthlyTotals.map(m => {
+                          const pct = monthlyGrandTotal > 0 ? (m.total / monthlyGrandTotal) * 100 : 0;
+                          return (
+                            <button
+                              key={`${m.year}-${m.month}`}
+                              onClick={() => setMonthDrillMonth({ year: m.year, month: m.month, label: m.label })}
+                              className="w-full text-left glass rounded-2xl p-4 sm:p-5 hover:bg-white/5 active:scale-[0.99] transition-all"
+                            >
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="min-w-0 flex items-center gap-2">
+                                  <div>
+                                    <p className="text-sm font-bold text-white truncate">{m.label}</p>
+                                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider mt-0.5">
+                                      {m.count} {m.count === 1 ? 'lançamento' : 'lançamentos'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 ml-3">
+                                  <div className="text-right">
+                                    <p className="text-lg sm:text-xl font-light tracking-tight text-white">
+                                      {formatCurrency(m.total).split(',')[0]}
+                                      <span className="text-xs opacity-30">,{formatCurrency(m.total).split(',')[1]}</span>
+                                    </p>
+                                    <p className="text-[10px] font-bold text-white/30 mt-0.5">{pct.toFixed(1)}%</p>
+                                  </div>
+                                  <ChevronRight className="w-4 h-4 text-white/30" />
+                                </div>
+                              </div>
+                              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full btn-gradient rounded-full transition-all"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {monthlyTotals.length > 0 && (
+                      <div className="mt-6 pt-6 border-t border-white/5 flex justify-between items-center px-2">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Total geral</span>
+                        <span className="text-lg font-light tracking-tight text-white">
+                          {formatCurrency(monthlyGrandTotal).split(',')[0]}
+                          <span className="text-xs opacity-30">,{formatCurrency(monthlyGrandTotal).split(',')[1]}</span>
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* NÍVEL 2: Categorias do mês selecionado */}
+                {monthDrillMonth && !monthDrillCategory && (() => {
+                  const monthTotal = drillCategories.reduce((s, c) => s + c.total, 0);
+                  return (
+                    <>
+                      <div className="flex justify-between items-center mb-6 px-2">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                          Categorias
+                        </h3>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/20">
+                          {drillCategories.length} {drillCategories.length === 1 ? 'categoria' : 'categorias'}
+                        </span>
+                      </div>
+
+                      {drillCategories.length === 0 ? (
+                        <div className="py-12 text-center">
+                          <p className="text-sm font-bold text-white/30">Nenhum gasto neste mês</p>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      ) : (
+                        <div className="space-y-3">
+                          {drillCategories.map(c => {
+                            const pct = monthTotal > 0 ? (c.total / monthTotal) * 100 : 0;
+                            return (
+                              <button
+                                key={c.name}
+                                onClick={() => setMonthDrillCategory(c.name)}
+                                className="w-full text-left glass rounded-2xl p-4 sm:p-5 hover:bg-white/5 active:scale-[0.99] transition-all"
+                              >
+                                <div className="flex justify-between items-start mb-3">
+                                  <div className="min-w-0 flex items-center gap-3">
+                                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                                    <div>
+                                      <p className="text-sm font-bold text-white truncate">{c.name}</p>
+                                      <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider mt-0.5">
+                                        {c.count} {c.count === 1 ? 'lançamento' : 'lançamentos'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                                    <div className="text-right">
+                                      <p className="text-lg sm:text-xl font-light tracking-tight text-white">
+                                        {formatCurrency(c.total).split(',')[0]}
+                                        <span className="text-xs opacity-30">,{formatCurrency(c.total).split(',')[1]}</span>
+                                      </p>
+                                      <p className="text-[10px] font-bold text-white/30 mt-0.5">{pct.toFixed(1)}%</p>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-white/30" />
+                                  </div>
+                                </div>
+                                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full transition-all"
+                                    style={{ width: `${pct}%`, backgroundColor: c.color }}
+                                  />
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
 
-                {monthlyTotals.length > 0 && (
-                  <div className="mt-6 pt-6 border-t border-white/5 flex justify-between items-center px-2">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Total geral</span>
-                    <span className="text-lg font-light tracking-tight text-white">
-                      {formatCurrency(monthlyGrandTotal).split(',')[0]}
-                      <span className="text-xs opacity-30">,{formatCurrency(monthlyGrandTotal).split(',')[1]}</span>
-                    </span>
-                  </div>
-                )}
+                      {drillCategories.length > 0 && (
+                        <div className="mt-6 pt-6 border-t border-white/5 flex justify-between items-center px-2">
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Total do mês</span>
+                          <span className="text-lg font-light tracking-tight text-white">
+                            {formatCurrency(monthTotal).split(',')[0]}
+                            <span className="text-xs opacity-30">,{formatCurrency(monthTotal).split(',')[1]}</span>
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+
+                {/* NÍVEL 3: Lançamentos individuais */}
+                {monthDrillMonth && monthDrillCategory && (() => {
+                  const catTotal = drillExpenses.reduce((s, e) => s + e.value, 0);
+                  const catColor = categories.find(c => c.name === monthDrillCategory)?.color ?? '#94a3b8';
+                  return (
+                    <>
+                      <div className="flex justify-between items-center mb-6 px-2">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: catColor }} />
+                          Lançamentos
+                        </h3>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/20">
+                          {drillExpenses.length} {drillExpenses.length === 1 ? 'item' : 'itens'}
+                        </span>
+                      </div>
+
+                      {drillExpenses.length === 0 ? (
+                        <div className="py-12 text-center">
+                          <p className="text-sm font-bold text-white/30">Nenhum lançamento</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {drillExpenses.map(e => {
+                            const d = new Date(e.expenseDate + 'T12:00:00');
+                            const formattedDate = isNaN(d.getTime())
+                              ? '—'
+                              : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+                            const owner = users.find(u => u.id === e.userId);
+                            return (
+                              <div key={e.id} className="glass rounded-2xl p-4 sm:p-5">
+                                <div className="flex justify-between items-start gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-bold text-white break-words">{e.name}</p>
+                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                      <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">{formattedDate}</span>
+                                      {owner && (
+                                        <>
+                                          <span className="text-white/10">•</span>
+                                          <span className="text-[10px] font-bold text-white/40 truncate max-w-[120px]">{owner.name}</span>
+                                        </>
+                                      )}
+                                      {e.attachmentUrl && (
+                                        <>
+                                          <span className="text-white/10">•</span>
+                                          <Paperclip className="w-3 h-3 text-white/30" />
+                                        </>
+                                      )}
+                                    </div>
+                                    {e.note && (
+                                      <p className="text-[11px] text-white/40 italic mt-2 leading-snug break-words">"{e.note}"</p>
+                                    )}
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <p className="text-lg font-light tracking-tight text-white">
+                                      {formatCurrency(e.value).split(',')[0]}
+                                      <span className="text-xs opacity-30">,{formatCurrency(e.value).split(',')[1]}</span>
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {drillExpenses.length > 0 && (
+                        <div className="mt-6 pt-6 border-t border-white/5 flex justify-between items-center px-2">
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Total da categoria</span>
+                          <span className="text-lg font-light tracking-tight text-white">
+                            {formatCurrency(catTotal).split(',')[0]}
+                            <span className="text-xs opacity-30">,{formatCurrency(catTotal).split(',')[1]}</span>
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </GlassCard>
             </motion.div>
           ) : view === 'overview' ? (
