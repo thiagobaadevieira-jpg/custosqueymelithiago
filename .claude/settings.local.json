@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:/Users/Thiago/Documents/marcador de custos queymeli/\" 2>&1; echo \"---\"; ls \"C:/Users/Thiago/Downloads/\" | grep -i marcador)",
+      "Bash(unzip -o \"C:/Users/Thiago/Downloads/Marcador-de-custos-main.zip\")",
+      "Bash(mv Marcador-de-custos-main/.claude/launch.json .claude/)",
+      "Bash(rmdir Marcador-de-custos-main/.claude)",
+      "Bash(npm install *)",
+      "mcp__549bd17e-fd69-4b16-8f1c-864bc031d4db__list_projects",
+      "mcp__549bd17e-fd69-4b16-8f1c-864bc031d4db__get_project_url",
+      "mcp__549bd17e-fd69-4b16-8f1c-864bc031d4db__get_publishable_keys",
+      "mcp__549bd17e-fd69-4b16-8f1c-864bc031d4db__list_tables",
+      "mcp__549bd17e-fd69-4b16-8f1c-864bc031d4db__apply_migration",
+      "Bash(gh auth *)",
+      "PowerShell(gh --version)",
+      "PowerShell(gh auth status)",
+      "PowerShell(git config --global user.name)",
+      "PowerShell(git config --global user.email)",
+      "PowerShell(git config --global credential.helper)",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git add *)"
+    ]
+  }
+}

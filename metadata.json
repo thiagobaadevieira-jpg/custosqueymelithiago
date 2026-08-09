@@ -1,0 +1,6 @@
+{
+  "name": "Controle de Gastos",
+  "description": "Sistema premium de marcação de custos com design glassmorphism inspirado na Apple.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
