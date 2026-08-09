@@ -12,7 +12,7 @@ async function cacheShellAssets(cache, html) {
 
 // ─── Push recebido do servidor (Web Push via Supabase Edge Function) ──────────
 self.addEventListener('push', (event) => {
-  let data = { title: 'Controle de Gastos', body: 'Você lembrou de anotar os seus gastos hoje?' };
+  let data = { title: 'Gastos Queymeli e Thiago', body: 'Você lembrou de anotar os seus gastos hoje?' };
   try {
     if (event.data) data = { ...data, ...JSON.parse(event.data.text()) };
   } catch (_) {}

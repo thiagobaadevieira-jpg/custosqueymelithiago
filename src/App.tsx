@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "@/src/lib/motion-stub";
-import { DollarSign, Bell, Plus, LayoutDashboard, List, LogOut, Search, Filter, Camera, X, ChevronDown, Settings, Trash2, Menu, Edit2, AlertCircle, Download, Paperclip, User as UserIcon, Check, Sun, Moon } from "lucide-react";
+import { Bell, Plus, LayoutDashboard, List, LogOut, Search, Filter, Camera, X, ChevronDown, Settings, Trash2, Menu, Edit2, AlertCircle, Download, Paperclip, User as UserIcon, Check, Sun, Moon, Calendar } from "lucide-react";
 import { cn, formatCurrency } from "@/src/lib/utils";
 import { User, Expense } from "@/src/types";
 import { supabase } from "@/src/lib/supabase";
@@ -132,7 +132,7 @@ const CategorySettingsModal = ({
                     editingCatName === cat.name && "border-blue-500/30 bg-blue-500/5 shadow-lg shadow-blue-500/10"
                   )}>
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-3 h-3 rounded-full shadow-[0_0_8px_currentcolor] shrink-0" style={{ backgroundColor: cat.color, color: cat.color }} />
+                      <div className="w-3 h-3 rounded-full bg-white shrink-0" />
                       
                       {editingCatName === cat.name ? (
                         <input 
@@ -289,7 +289,7 @@ const NotificationSettingsModal = ({
       setPermissionState(permission);
       if (permission === 'granted') {
         await sendNotificationViaSW(
-          title || "Controle de Gastos",
+          title || "Gastos Queymeli e Thiago",
           "Lembretes diários ativados com sucesso! 🔔"
         );
       }
@@ -312,7 +312,7 @@ const NotificationSettingsModal = ({
       alert("As notificações nativas não são suportadas neste navegador.");
       return;
     }
-    const previewTitle = title.trim() || "Controle de Gastos";
+    const previewTitle = title.trim() || "Gastos Queymeli e Thiago";
     const previewBody = message.trim() || "Seu lembrete de teste está funcionando! 🤝";
     if (Notification.permission !== 'granted') {
       const perm = await Notification.requestPermission();
@@ -379,7 +379,7 @@ const NotificationSettingsModal = ({
                   value={title}
                   onChange={(e) => onTitleChange(e.target.value)}
                   maxLength={50}
-                  placeholder="Ex: Controle de Gastos"
+                  placeholder="Ex: Gastos Queymeli e Thiago"
                   className="w-full h-12 glass rounded-2xl px-5 outline-none focus:border-blue-500/50 transition-colors text-base font-bold placeholder:text-white/10"
                 />
               </div>
@@ -864,18 +864,14 @@ const ExportModal = ({ isOpen, onClose, expenses, categories, users }: ExportMod
     .logo {
       width: 48px;
       height: 48px;
-      background: #000000;
-      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 900;
-      font-size: 24px;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: #fff;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
     }
+    .logo svg { width: 100%; height: 100%; display: block; }
 
     .title-area h1 {
       font-size: 20px;
@@ -1204,9 +1200,9 @@ const ExportModal = ({ isOpen, onClose, expenses, categories, users }: ExportMod
 
     <header>
       <div class="logo-container">
-        <div class="logo">$</div>
+        <div class="logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><circle cx="256" cy="256" r="256" fill="#E8A833"/><circle cx="256" cy="256" r="222" fill="#FED04A"/><g fill="none" stroke="#7B4A1D" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"><path d="M 256 100 V 412"/><path d="M 330 168 C 320 148, 292 132, 256 132 C 216 132, 188 154, 188 186 C 188 218, 220 232, 256 240 C 292 248, 324 262, 324 296 C 324 328, 296 348, 256 348 C 220 348, 192 332, 182 312"/></g></svg></div>
         <div class="title-area">
-          <h1>Controle de Gastos</h1>
+          <h1>Gastos Queymeli e Thiago</h1>
           <p>Fechamento e Consumo Mensal</p>
         </div>
       </div>
@@ -1747,10 +1743,9 @@ const LoginScreen = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <GlassCard className="w-full max-w-md p-10 text-center rounded-[40px]" delay={0.2}>
-        <div className="w-20 h-20 bg-black border border-white/10 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg select-none">
-          <DollarSign className="w-10 h-10 text-white stroke-[2.5]" />
-        </div>
-        <h1 className="text-3xl font-bold mb-1 tracking-tighter">Controle de gastos</h1>
+        <img src="/icon.svg" alt="" className="w-20 h-20 mx-auto mb-8 shadow-lg select-none rounded-full" />
+
+        <h1 className="text-3xl font-bold mb-1 tracking-tighter">Gastos Queymeli e Thiago</h1>
         <p className="text-white/30 mb-10 text-xs font-bold uppercase tracking-[0.2em]">sistema de gestão financeira</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -2451,7 +2446,7 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     return localStorage.getItem('notification_time') || '20:00';
   });
   // Título/mensagem das notificações agora vêm do Supabase (compartilhado pelo time)
-  const [notificationTitle, setNotificationTitle] = useState('Controle de Gastos');
+  const [notificationTitle, setNotificationTitle] = useState('Gastos Queymeli e Thiago');
   const [notificationMessage, setNotificationMessage] = useState('Você lembrou de anotar os seus gastos hoje?');
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -2488,7 +2483,7 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     if (Notification.permission !== 'granted') return;
 
-    const title = notificationTitle.trim() || 'Controle de Gastos';
+    const title = notificationTitle.trim() || 'Gastos Queymeli e Thiago';
     const message = notificationMessage.trim() || 'Você lembrou de anotar os seus gastos hoje?';
 
     navigator.serviceWorker.ready.then(async (reg) => {
@@ -2527,7 +2522,7 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
-  const [view, setView] = useState<'overview' | 'list'>('overview');
+  const [view, setView] = useState<'overview' | 'list' | 'month'>('overview');
 
   // Conexão: banner offline + sincronização da fila quando a rede volta
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -2823,6 +2818,30 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
       .reduce((sum, e) => sum + e.value, 0);
   }, [expenses]);
 
+  const monthlyTotals = useMemo(() => {
+    const map = new Map<string, { label: string; total: number; count: number; year: number; month: number }>();
+    expenses.forEach(e => {
+      const d = new Date(e.expenseDate + 'T12:00:00');
+      if (isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+      const rawLabel = d.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+      const label = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1);
+      const existing = map.get(key);
+      if (existing) {
+        existing.total += e.value;
+        existing.count += 1;
+      } else {
+        map.set(key, { label, total: e.value, count: 1, year: d.getFullYear(), month: d.getMonth() });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => b.year - a.year || b.month - a.month);
+  }, [expenses]);
+
+  const monthlyGrandTotal = useMemo(
+    () => monthlyTotals.reduce((sum, m) => sum + m.total, 0),
+    [monthlyTotals]
+  );
+
   // useScroll/useTransform removidos — parallax JS causava jank no mobile
 
   // Debounce da busca — evita recalcular lista a cada tecla
@@ -2923,11 +2942,9 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
       {/* Header */}
       <header className={`fixed top-0 inset-x-0 glass border-b border-white/5 px-6 py-5 flex items-center justify-between z-[80] backdrop-blur-lg transition-transform duration-300 ${headerVisible ? 'translate-y-0' : '-translate-y-full'}`}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-black border border-white/10 rounded-full flex items-center justify-center shadow-lg select-none">
-            <DollarSign className="w-5 h-5 text-white stroke-[2.5]" />
-          </div>
+          <img src="/icon.svg" alt="" className="w-10 h-10 rounded-full shadow-lg select-none" />
           <div>
-            <h1 className="text-base font-bold tracking-tight">Controle de Gastos</h1>
+            <h1 className="text-base font-bold tracking-tight">Gastos Queymeli e Thiago</h1>
           </div>
         </div>
         
@@ -3034,7 +3051,7 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
             <LayoutDashboard className="w-4 h-4" />
             <span className="text-sm font-bold">Resumo</span>
           </button>
-          <button 
+          <button
             onClick={() => setView('list')}
             className={cn(
               "flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all",
@@ -3044,10 +3061,88 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
             <List className="w-4 h-4" />
             <span className="text-sm font-bold">Lançamentos</span>
           </button>
+          <button
+            onClick={() => setView('month')}
+            className={cn(
+              "flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all",
+              view === 'month' ? "bg-white/10 text-white shadow-xl" : "text-white/40 hover:text-white/60"
+            )}
+          >
+            <Calendar className="w-4 h-4" />
+            <span className="text-sm font-bold">Mês</span>
+          </button>
         </div>
 
         <AnimatePresence mode="wait">
-          {view === 'overview' ? (
+          {view === 'month' ? (
+            <motion.div
+              key="month"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: 0.15 } }}
+              exit={{ opacity: 0, transition: { duration: 0.05 } }}
+              className="space-y-6"
+            >
+              <GlassCard className="p-6 sm:p-8">
+                <div className="flex justify-between items-center mb-6 px-2">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    Totais por Mês
+                  </h3>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/20">
+                    {monthlyTotals.length} {monthlyTotals.length === 1 ? 'mês' : 'meses'}
+                  </span>
+                </div>
+
+                {monthlyTotals.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <p className="text-sm font-bold text-white/30">Nenhum lançamento ainda</p>
+                    <p className="text-[11px] text-white/20 mt-1">Adicione seu primeiro gasto pra ver os totais mensais</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {monthlyTotals.map(m => {
+                      const pct = monthlyGrandTotal > 0 ? (m.total / monthlyGrandTotal) * 100 : 0;
+                      return (
+                        <div key={`${m.year}-${m.month}`} className="glass rounded-2xl p-4 sm:p-5">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-white truncate">{m.label}</p>
+                              <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider mt-0.5">
+                                {m.count} {m.count === 1 ? 'lançamento' : 'lançamentos'}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0 ml-3">
+                              <p className="text-lg sm:text-xl font-light tracking-tight text-white">
+                                {formatCurrency(m.total).split(',')[0]}
+                                <span className="text-xs opacity-30">,{formatCurrency(m.total).split(',')[1]}</span>
+                              </p>
+                              <p className="text-[10px] font-bold text-white/30 mt-0.5">{pct.toFixed(1)}%</p>
+                            </div>
+                          </div>
+                          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                            <div
+                              className="h-full btn-gradient rounded-full transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {monthlyTotals.length > 0 && (
+                  <div className="mt-6 pt-6 border-t border-white/5 flex justify-between items-center px-2">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Total geral</span>
+                    <span className="text-lg font-light tracking-tight text-white">
+                      {formatCurrency(monthlyGrandTotal).split(',')[0]}
+                      <span className="text-xs opacity-30">,{formatCurrency(monthlyGrandTotal).split(',')[1]}</span>
+                    </span>
+                  </div>
+                )}
+              </GlassCard>
+            </motion.div>
+          ) : view === 'overview' ? (
             <motion.div
               key="overview"
               initial={{ opacity: 0 }}

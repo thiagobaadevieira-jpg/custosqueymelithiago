@@ -210,7 +210,7 @@ export async function getAppSettings(): Promise<AppSettings> {
     .single();
   if (error || !data) {
     return {
-      notificationTitle: 'Controle de Gastos',
+      notificationTitle: 'Gastos Queymeli e Thiago',
       notificationMessage: 'Você lembrou de anotar os seus gastos hoje?',
     };
   }
