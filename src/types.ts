@@ -27,3 +27,16 @@ export interface UserStats {
   total: number;
   color: string;
 }
+
+export interface Bill {
+  id: string;
+  name: string;
+  value: number;
+  dueDay: number; // 1-31
+  category: string;
+  isRecurring: boolean;
+  lastPaidYearMonth: string | null; // 'YYYY-MM' — usado pra saber se está paga no mês corrente
+  lastPaidExpenseId: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}

@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "@/src/lib/motion-stub";
-import { Bell, Plus, LayoutDashboard, List, LogOut, Search, Filter, Camera, X, ChevronDown, ChevronLeft, ChevronRight, Settings, Trash2, Menu, Edit2, AlertCircle, Download, Paperclip, User as UserIcon, Check, Sun, Moon, Calendar } from "lucide-react";
+import { Bell, Plus, LayoutDashboard, List, LogOut, Search, Filter, Camera, X, ChevronDown, ChevronLeft, ChevronRight, Settings, Trash2, Menu, Edit2, AlertCircle, Download, Paperclip, User as UserIcon, Check, Sun, Moon, Calendar, Wallet, Repeat } from "lucide-react";
 import { cn, formatCurrency } from "@/src/lib/utils";
-import { User, Expense } from "@/src/types";
+import { User, Expense, Bill } from "@/src/types";
 import { supabase } from "@/src/lib/supabase";
 import * as db from "@/src/lib/db";
 import type { Category } from "@/src/lib/db";
@@ -197,6 +197,342 @@ const CategorySettingsModal = ({
             title="Excluir Categoria?"
             message={`Tem certeza que deseja remover a categoria "${catToDelete}"? Todos os gastos vinculados a ela permanecerão, mas a categoria será removida do painel.`}
           />
+    </>
+  );
+};
+
+// --- Bill Form Modal (nova/editar conta) ---
+
+const BillFormModal = ({
+  isOpen,
+  onClose,
+  onSave,
+  onDelete,
+  bill,
+  categories,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: { name: string; value: number; dueDay: number; category: string; isRecurring: boolean }) => Promise<void>;
+  onDelete?: () => void;
+  bill: Bill | null;
+  categories: Category[];
+}) => {
+  const [name, setName] = useState('');
+  const [valueStr, setValueStr] = useState('');
+  const [dueDay, setDueDay] = useState<number>(1);
+  const [category, setCategory] = useState('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [catDropdownOpen, setCatDropdownOpen] = useState(false);
+  const [dayDropdownOpen, setDayDropdownOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useLockBodyScroll(isOpen);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (bill) {
+      setName(bill.name);
+      setValueStr(bill.value.toFixed(2).replace('.', ','));
+      setDueDay(bill.dueDay);
+      setCategory(bill.category);
+      setIsRecurring(bill.isRecurring);
+    } else {
+      setName('');
+      setValueStr('');
+      setDueDay(new Date().getDate());
+      setCategory(categories[0]?.name ?? '');
+      setIsRecurring(false);
+    }
+    setCatDropdownOpen(false);
+    setDayDropdownOpen(false);
+  }, [isOpen, bill, categories]);
+
+  if (!isOpen) return null;
+
+  const handleSave = async () => {
+    const value = Number(valueStr.replace(/\./g, '').replace(',', '.'));
+    if (!name.trim() || !category || isNaN(value) || value <= 0) return;
+    setSaving(true);
+    try {
+      await onSave({ name: name.trim(), value, dueDay, category, isRecurring });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div onClick={onClose} className="fixed inset-0 bg-slate-950/50 backdrop-blur-md z-[200]" />
+      <div className="fixed inset-4 m-auto max-w-sm h-fit max-h-[calc(100vh-2rem)] overflow-y-auto overscroll-contain scrollbar-none surface-modal backdrop-blur-xl rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 z-[201] border border-white/10">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-black tracking-tight">{bill ? 'Editar Conta' : 'Nova Conta'}</h2>
+          <button onClick={onClose} className="p-3 glass rounded-2xl hover:bg-white/5 transition-colors">
+            <X className="w-5 h-5 text-white/40" />
+          </button>
+        </div>
+
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Nome</label>
+            <input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Ex: Aluguel, Netflix..."
+              className="w-full h-14 glass rounded-2xl px-5 outline-none focus:border-blue-500/50 text-base font-bold placeholder:text-white/10"
+              maxLength={60}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Valor</label>
+            <div className="relative">
+              <span className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30 font-bold">R$</span>
+              <input
+                inputMode="decimal"
+                value={valueStr}
+                onChange={e => setValueStr(e.target.value.replace(/[^0-9,.]/g, ''))}
+                placeholder="0,00"
+                className="w-full h-14 glass rounded-2xl pl-12 pr-5 outline-none focus:border-blue-500/50 text-base font-bold placeholder:text-white/10"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2 relative">
+              <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Dia venc.</label>
+              <button
+                type="button"
+                onClick={() => { setDayDropdownOpen(o => !o); setCatDropdownOpen(false); }}
+                className={cn(
+                  "w-full h-14 glass rounded-2xl px-5 text-left flex items-center justify-between text-base font-bold border",
+                  dayDropdownOpen ? "border-blue-500/40 bg-white/10" : "border-transparent"
+                )}
+              >
+                <span>{dueDay}</span>
+                <ChevronDown className={cn("w-4 h-4 text-white/40 transition-transform", dayDropdownOpen && "rotate-180")} />
+              </button>
+              {dayDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-[210]" onClick={() => setDayDropdownOpen(false)} />
+                  <div className="absolute left-0 right-0 mt-2 surface-dropdown backdrop-blur-lg border border-white/10 rounded-2xl p-1 shadow-2xl z-[215] max-h-52 overflow-y-auto scrollbar-none">
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => { setDueDay(d); setDayDropdownOpen(false); }}
+                        className={cn(
+                          "w-full py-2.5 text-center text-sm font-bold rounded-xl transition-all",
+                          d === dueDay ? "bg-blue-500/20 text-blue-400" : "text-white/60 hover:bg-white/5"
+                        )}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="space-y-2 relative">
+              <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Categoria</label>
+              <button
+                type="button"
+                onClick={() => { setCatDropdownOpen(o => !o); setDayDropdownOpen(false); }}
+                className={cn(
+                  "w-full h-14 glass rounded-2xl px-4 text-left flex items-center justify-between text-sm font-bold border",
+                  catDropdownOpen ? "border-blue-500/40 bg-white/10" : "border-transparent"
+                )}
+              >
+                <span className="truncate">{category || '—'}</span>
+                <ChevronDown className={cn("w-4 h-4 text-white/40 transition-transform shrink-0", catDropdownOpen && "rotate-180")} />
+              </button>
+              {catDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-[210]" onClick={() => setCatDropdownOpen(false)} />
+                  <div className="absolute left-0 right-0 mt-2 surface-dropdown backdrop-blur-lg border border-white/10 rounded-2xl p-1 shadow-2xl z-[215] max-h-52 overflow-y-auto scrollbar-none">
+                    {categories.map(c => (
+                      <button
+                        key={c.name}
+                        type="button"
+                        onClick={() => { setCategory(c.name); setCatDropdownOpen(false); }}
+                        className={cn(
+                          "w-full py-2.5 px-3 text-left text-sm font-bold rounded-xl transition-all flex items-center gap-2",
+                          c.name === category ? "bg-blue-500/20 text-blue-400" : "text-white/70 hover:bg-white/5"
+                        )}
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                        <span className="truncate">{c.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsRecurring(v => !v)}
+            className="w-full glass rounded-2xl p-4 flex items-center justify-between"
+          >
+            <div className="text-left flex items-center gap-3">
+              <Repeat className={cn("w-5 h-5", isRecurring ? "text-blue-400" : "text-white/30")} />
+              <div>
+                <p className="text-sm font-bold text-white">Conta Recorrente</p>
+                <p className="text-[10px] text-white/40">Reaparece todo mês</p>
+              </div>
+            </div>
+            <div className={cn("w-12 h-7 rounded-full p-1 flex items-center", isRecurring ? "bg-blue-500" : "bg-white/10")}>
+              <div className={cn("w-5 h-5 rounded-full bg-white shadow transition-transform", isRecurring ? "translate-x-5" : "translate-x-0")} />
+            </div>
+          </button>
+        </div>
+
+        <div className="mt-8 space-y-3">
+          <button
+            onClick={handleSave}
+            disabled={saving || !name.trim() || !category || !valueStr}
+            className="w-full h-14 btn-gradient rounded-2xl font-bold text-sm shadow-xl active:scale-95 transition-all text-white disabled:opacity-40 disabled:active:scale-100"
+          >
+            {saving ? 'Salvando...' : bill ? 'Salvar Alterações' : 'Adicionar Conta'}
+          </button>
+          {bill && onDelete && (
+            <button
+              onClick={onDelete}
+              className="w-full h-12 glass rounded-2xl font-bold text-xs text-red-400/70 hover:text-red-400 hover:bg-red-500/5 transition-colors"
+            >
+              Excluir Conta
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+// --- Pay Bill Modal (pergunta se anexa comprovante) ---
+
+const PayBillModal = ({
+  bill,
+  isPaid,
+  onClose,
+  onPay,
+  onUnpay,
+}: {
+  bill: Bill | null;
+  isPaid: boolean;
+  onClose: () => void;
+  onPay: (bill: Bill, file: File | null) => Promise<void>;
+  onUnpay: (bill: Bill) => Promise<void>;
+}) => {
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useLockBodyScroll(!!bill);
+
+  if (!bill) return null;
+
+  const doPay = async (file: File | null) => {
+    setBusy(true);
+    try {
+      await onPay(bill, file);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doUnpay = async () => {
+    setBusy(true);
+    try {
+      await onUnpay(bill);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div onClick={busy ? undefined : onClose} className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-[200]" />
+      <div className="fixed inset-4 m-auto max-w-sm h-fit surface-modal backdrop-blur-xl rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 z-[201] border border-white/10">
+        {isPaid ? (
+          <>
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-7 h-7 text-amber-400" />
+              </div>
+              <h2 className="text-xl font-black tracking-tight text-white">Desfazer pagamento?</h2>
+              <p className="text-[12px] text-white/40 mt-2 leading-relaxed">
+                Vai remover o lançamento de <span className="font-bold text-white">{formatCurrency(bill.value)}</span> criado em Lançamentos.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <button
+                onClick={doUnpay}
+                disabled={busy}
+                className="w-full h-14 bg-amber-500/20 border border-amber-500/30 rounded-2xl font-bold text-sm text-amber-400 active:scale-95 transition-all disabled:opacity-40"
+              >
+                {busy ? 'Removendo...' : 'Sim, desfazer'}
+              </button>
+              <button
+                onClick={onClose}
+                disabled={busy}
+                className="w-full h-12 glass rounded-2xl font-bold text-xs text-white/60"
+              >
+                Cancelar
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                <Check className="w-7 h-7 text-emerald-400 stroke-[3]" />
+              </div>
+              <h2 className="text-xl font-black tracking-tight text-white">{bill.name}</h2>
+              <p className="text-2xl font-light text-white mt-1">{formatCurrency(bill.value)}</p>
+              <p className="text-[12px] text-white/40 mt-3 leading-relaxed">Deseja anexar o comprovante?</p>
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={e => {
+                const f = e.target.files?.[0] ?? null;
+                if (f) doPay(f);
+              }}
+            />
+            <div className="space-y-3">
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={busy}
+                className="w-full h-14 btn-gradient rounded-2xl font-bold text-sm shadow-xl active:scale-95 transition-all text-white disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                <Camera className="w-4 h-4" />
+                {busy ? 'Enviando...' : 'Sim, anexar comprovante'}
+              </button>
+              <button
+                onClick={() => doPay(null)}
+                disabled={busy}
+                className="w-full h-14 glass rounded-2xl font-bold text-sm text-white/80 active:scale-95 transition-all disabled:opacity-40"
+              >
+                Não, pagar sem anexo
+              </button>
+              <button
+                onClick={onClose}
+                disabled={busy}
+                className="w-full h-12 text-white/40 hover:text-white/60 font-bold text-xs transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </>
   );
 };
@@ -2391,6 +2727,7 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
   const [expenses, setExpenses] = useState<Expense[]>(bootSnap?.expenses ?? []);
   const [categories, setCategories] = useState<Category[]>(bootSnap?.categories ?? []);
   const [users, setUsers] = useState<User[]>(bootSnap?.users?.length ? bootSnap.users : [user]);
+  const [bills, setBills] = useState<Bill[]>([]);
   const [dataLoading, setDataLoading] = useState(!bootSnap);
   const [dataError, setDataError] = useState<string | null>(null);
 
@@ -2406,11 +2743,12 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
   const loadData = () => {
     if (!bootSnap) setDataLoading(true); // spinner só na primeira vez, sem cache
     setDataError(null);
-    Promise.all([db.getExpenses(), db.getCategories(), db.getUsers(), db.getAppSettings(), getQueuedAsExpenses()])
-      .then(([exps, cats, usrs, settings, queued]) => {
+    Promise.all([db.getExpenses(), db.getCategories(), db.getUsers(), db.getAppSettings(), getQueuedAsExpenses(), db.getBills()])
+      .then(([exps, cats, usrs, settings, queued, bls]) => {
         setExpenses([...queued, ...exps]);
         setCategories(cats);
         setUsers(usrs.length ? usrs : [user]);
+        setBills(bls);
         setNotificationTitle(settings.notificationTitle);
         setNotificationMessage(settings.notificationMessage);
         saveSnapshot(exps, cats, usrs.length ? usrs : [user]);
@@ -2522,9 +2860,13 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
-  const [view, setView] = useState<'overview' | 'list' | 'month'>('overview');
+  const [view, setView] = useState<'overview' | 'list' | 'month' | 'bills'>('overview');
   const [monthDrillMonth, setMonthDrillMonth] = useState<{ year: number; month: number; label: string } | null>(null);
   const [monthDrillCategory, setMonthDrillCategory] = useState<string | null>(null);
+  const [billModalOpen, setBillModalOpen] = useState(false);
+  const [billToEdit, setBillToEdit] = useState<Bill | null>(null);
+  const [billToDelete, setBillToDelete] = useState<Bill | null>(null);
+  const [billToPay, setBillToPay] = useState<Bill | null>(null);
 
   // Conexão: banner offline + sincronização da fila quando a rede volta
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -2668,6 +3010,48 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
       setSelectedExpense(null);
     }
   }, [expenseToDelete]);
+
+  const handleSaveBill = useCallback(async (data: { name: string; value: number; dueDay: number; category: string; isRecurring: boolean }) => {
+    if (billToEdit) {
+      await db.updateBill(billToEdit.id, data);
+      setBills(prev => prev.map(b => b.id === billToEdit.id ? { ...b, ...data } : b));
+    } else {
+      const created = await db.createBill(data, user.id);
+      setBills(prev => [...prev, created]);
+    }
+    setBillToEdit(null);
+  }, [billToEdit, user.id]);
+
+  const confirmDeleteBill = useCallback(async () => {
+    if (!billToDelete) return;
+    await db.deleteBill(billToDelete.id);
+    setBills(prev => prev.filter(b => b.id !== billToDelete.id));
+    setBillToDelete(null);
+    setBillToEdit(null);
+  }, [billToDelete]);
+
+  const handlePayBill = useCallback(async (bill: Bill, file: File | null) => {
+    let attachmentUrl: string | undefined;
+    if (file) {
+      attachmentUrl = await db.uploadReceipt(file, user.id);
+    }
+    const { expense, yearMonth } = await db.payBill(bill, user.id, attachmentUrl);
+    setBills(prev => prev.map(b =>
+      b.id === bill.id ? { ...b, lastPaidYearMonth: yearMonth, lastPaidExpenseId: expense.id } : b
+    ));
+    setExpenses(prev => [expense, ...prev]);
+  }, [user.id]);
+
+  const handleUnpayBill = useCallback(async (bill: Bill) => {
+    const removedExpenseId = bill.lastPaidExpenseId;
+    await db.unpayBill(bill);
+    setBills(prev => prev.map(b =>
+      b.id === bill.id ? { ...b, lastPaidYearMonth: null, lastPaidExpenseId: null } : b
+    ));
+    if (removedExpenseId) {
+      setExpenses(prev => prev.filter(e => e.id !== removedExpenseId));
+    }
+  }, []);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -2970,7 +3354,7 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     const dx = e.changedTouches[0].clientX - el._swipeX;
     const dy = Math.abs(e.changedTouches[0].clientY - el._swipeY);
     if (Math.abs(dx) > 60 && dy < 80) {
-      const order: Array<'overview' | 'list' | 'month'> = ['overview', 'list', 'month'];
+      const order: Array<'overview' | 'list' | 'month' | 'bills'> = ['overview', 'list', 'month', 'bills'];
       const idx = order.indexOf(view);
       if (dx < 0 && idx < order.length - 1) setView(order[idx + 1]);
       else if (dx > 0 && idx > 0) setView(order[idx - 1]);
@@ -3115,10 +3499,178 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
             <Calendar className="w-4 h-4" />
             <span className="text-sm font-bold">Mês</span>
           </button>
+          <button
+            onClick={() => setView('bills')}
+            className={cn(
+              "flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all",
+              view === 'bills' ? "bg-white/10 text-white shadow-xl" : "text-white/40 hover:text-white/60"
+            )}
+          >
+            <Wallet className="w-4 h-4" />
+            <span className="text-sm font-bold">Contas</span>
+          </button>
         </div>
 
         <AnimatePresence mode="wait">
-          {view === 'month' ? (
+          {view === 'bills' ? (
+            <motion.div
+              key="bills"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: 0.15 } }}
+              exit={{ opacity: 0, transition: { duration: 0.05 } }}
+              className="space-y-6"
+            >
+              {(() => {
+                const currentYm = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+                const isPaid = (b: Bill) =>
+                  b.isRecurring
+                    ? b.lastPaidYearMonth === currentYm
+                    : b.lastPaidYearMonth !== null;
+                const visible = bills.filter(b =>
+                  b.isRecurring || b.lastPaidYearMonth === null || b.lastPaidYearMonth === currentYm
+                );
+                const unpaid = visible.filter(b => !isPaid(b)).sort((a, b) => a.dueDay - b.dueDay);
+                const paid = visible.filter(b => isPaid(b)).sort((a, b) => a.dueDay - b.dueDay);
+                const ordered = [...unpaid, ...paid];
+                const totalMonth = visible.reduce((s, b) => s + b.value, 0);
+                const totalPaid = paid.reduce((s, b) => s + b.value, 0);
+                const totalRemaining = totalMonth - totalPaid;
+                const pctPaid = totalMonth > 0 ? (totalPaid / totalMonth) * 100 : 0;
+                return (
+                  <>
+                    {/* Card de totais */}
+                    <GlassCard className="p-6 sm:p-8">
+                      <div className="flex justify-between items-center mb-5 px-1">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                          Contas do Mês
+                        </h3>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/20">
+                          {visible.length} {visible.length === 1 ? 'conta' : 'contas'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3 mb-5">
+                        <div className="glass rounded-2xl p-3 sm:p-4 text-center">
+                          <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-2">Total</p>
+                          <p className="text-sm sm:text-base font-light text-white tracking-tight truncate">
+                            {formatCurrency(totalMonth).split(',')[0]}
+                            <span className="opacity-30 text-xs">,{formatCurrency(totalMonth).split(',')[1]}</span>
+                          </p>
+                        </div>
+                        <div className="glass rounded-2xl p-3 sm:p-4 text-center border border-emerald-500/10">
+                          <p className="text-[8px] font-black uppercase tracking-widest text-emerald-400/70 mb-2">Pago</p>
+                          <p className="text-sm sm:text-base font-light text-emerald-400 tracking-tight truncate">
+                            {formatCurrency(totalPaid).split(',')[0]}
+                            <span className="opacity-40 text-xs">,{formatCurrency(totalPaid).split(',')[1]}</span>
+                          </p>
+                        </div>
+                        <div className="glass rounded-2xl p-3 sm:p-4 text-center border border-amber-500/10">
+                          <p className="text-[8px] font-black uppercase tracking-widest text-amber-400/70 mb-2">Falta</p>
+                          <p className="text-sm sm:text-base font-light text-amber-400 tracking-tight truncate">
+                            {formatCurrency(totalRemaining).split(',')[0]}
+                            <span className="opacity-40 text-xs">,{formatCurrency(totalRemaining).split(',')[1]}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 rounded-full transition-all"
+                          style={{ width: `${pctPaid}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mt-2 text-right">
+                        {pctPaid.toFixed(0)}% pago
+                      </p>
+                    </GlassCard>
+
+                    {/* Lista de contas */}
+                    <GlassCard className="p-4 sm:p-6">
+                      {ordered.length === 0 ? (
+                        <div className="py-12 text-center">
+                          <p className="text-sm font-bold text-white/30">Nenhuma conta cadastrada</p>
+                          <p className="text-[11px] text-white/20 mt-1">Toque no + pra adicionar sua primeira conta</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {ordered.map(b => {
+                            const paid = isPaid(b);
+                            const catObj = categories.find(c => c.name === b.category);
+                            const catColor = catObj?.color ?? '#94a3b8';
+                            return (
+                              <div
+                                key={b.id}
+                                className={cn(
+                                  "glass rounded-2xl p-4 flex items-center gap-3 transition-all",
+                                  paid && "opacity-40"
+                                )}
+                              >
+                                <button
+                                  onClick={() => setBillToPay(b)}
+                                  className={cn(
+                                    "w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 transition-all active:scale-90",
+                                    paid ? "bg-emerald-500 border-emerald-500" : "border-white/20 hover:border-white/40"
+                                  )}
+                                  aria-label={paid ? "Marcar como não paga" : "Marcar como paga"}
+                                >
+                                  {paid && <Check className="w-4 h-4 text-white stroke-[3]" />}
+                                </button>
+
+                                <button
+                                  onClick={() => { setBillToEdit(b); setBillModalOpen(true); }}
+                                  className="flex-1 min-w-0 text-left"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <p className={cn(
+                                      "text-sm font-bold text-white truncate",
+                                      paid && "line-through"
+                                    )}>{b.name}</p>
+                                    {b.isRecurring && (
+                                      <Repeat className="w-3 h-3 text-blue-400 shrink-0" />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span
+                                      className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                                      style={{ backgroundColor: `${catColor}20`, color: catColor }}
+                                    >
+                                      {b.category}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-white/40">
+                                      Vence dia {b.dueDay}
+                                    </span>
+                                  </div>
+                                </button>
+
+                                <div className="text-right shrink-0">
+                                  <p className={cn(
+                                    "text-base font-light tracking-tight text-white",
+                                    paid && "line-through"
+                                  )}>
+                                    {formatCurrency(b.value).split(',')[0]}
+                                    <span className="opacity-30 text-xs">,{formatCurrency(b.value).split(',')[1]}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => { setBillToEdit(null); setBillModalOpen(true); }}
+                        className="mt-4 w-full h-12 btn-gradient rounded-2xl font-bold text-sm shadow-lg active:scale-95 transition-all text-white flex items-center justify-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Adicionar Conta
+                      </button>
+                    </GlassCard>
+                  </>
+                );
+              })()}
+            </motion.div>
+          ) : view === 'month' ? (
             <motion.div
               key="month"
               initial={{ opacity: 0 }}
@@ -3965,6 +4517,34 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
         onConfirm={confirmDelete}
         title="Excluir Registro?"
         message="Esta ação não pode ser desfeita. O gasto selecionado será removido permanentemente do relatório."
+      />
+      <BillFormModal
+        isOpen={billModalOpen}
+        onClose={() => { setBillModalOpen(false); setBillToEdit(null); }}
+        bill={billToEdit}
+        categories={categories}
+        onSave={handleSaveBill}
+        onDelete={billToEdit ? () => { setBillToDelete(billToEdit); setBillModalOpen(false); } : undefined}
+      />
+      <PayBillModal
+        bill={billToPay}
+        isPaid={(() => {
+          if (!billToPay) return false;
+          const ym = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+          return billToPay.isRecurring
+            ? billToPay.lastPaidYearMonth === ym
+            : billToPay.lastPaidYearMonth !== null;
+        })()}
+        onClose={() => setBillToPay(null)}
+        onPay={handlePayBill}
+        onUnpay={handleUnpayBill}
+      />
+      <ConfirmationModal
+        isOpen={!!billToDelete}
+        onClose={() => setBillToDelete(null)}
+        onConfirm={confirmDeleteBill}
+        title="Excluir Conta?"
+        message={`A conta "${billToDelete?.name}" será removida. Os lançamentos já pagos serão mantidos.`}
       />
       <ProfileModal
         isOpen={isProfileOpen}

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { User, Expense } from '../types';
+import type { User, Expense, Bill } from '../types';
 
 export type Category = { id?: string; name: string; color: string; initials: string };
 
@@ -79,10 +79,10 @@ export async function updateExpensesCategoryName(
   oldName: string,
   newName: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('expenses')
-    .update({ category: newName })
-    .eq('category', oldName);
+  const { error } = await supabase.rpc('rename_category', {
+    old_name: oldName,
+    new_name: newName,
+  });
   if (error) throw error;
 }
 
@@ -266,6 +266,108 @@ export async function upsertPushSubscription(
 
 export async function disablePushSubscription(userId: string): Promise<void> {
   await supabase.from('push_subscriptions').update({ enabled: false }).eq('user_id', userId);
+}
+
+// ─── Bills (contas do mês) ───────────────────────────────────────────────────
+
+function rowToBill(row: Record<string, unknown>): Bill {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    value: Number(row.value),
+    dueDay: Number(row.due_day),
+    category: row.category as string,
+    isRecurring: Boolean(row.is_recurring),
+    lastPaidYearMonth: (row.last_paid_year_month as string) ?? null,
+    lastPaidExpenseId: (row.last_paid_expense_id as string) ?? null,
+    createdBy: (row.created_by as string) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function getBills(): Promise<Bill[]> {
+  const { data, error } = await supabase
+    .from('bills')
+    .select('*')
+    .order('due_day', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(rowToBill);
+}
+
+export async function createBill(
+  data: Omit<Bill, 'id' | 'createdAt' | 'lastPaidYearMonth' | 'lastPaidExpenseId' | 'createdBy'>,
+  userId: string
+): Promise<Bill> {
+  const { data: row, error } = await supabase
+    .from('bills')
+    .insert({
+      name: data.name,
+      value: data.value,
+      due_day: data.dueDay,
+      category: data.category,
+      is_recurring: data.isRecurring,
+      created_by: userId,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return rowToBill(row);
+}
+
+export async function updateBill(
+  id: string,
+  updates: Partial<Omit<Bill, 'id' | 'createdAt' | 'createdBy'>>
+): Promise<void> {
+  const payload: Record<string, unknown> = {};
+  if (updates.name !== undefined) payload.name = updates.name;
+  if (updates.value !== undefined) payload.value = updates.value;
+  if (updates.dueDay !== undefined) payload.due_day = updates.dueDay;
+  if (updates.category !== undefined) payload.category = updates.category;
+  if (updates.isRecurring !== undefined) payload.is_recurring = updates.isRecurring;
+  if (updates.lastPaidYearMonth !== undefined) payload.last_paid_year_month = updates.lastPaidYearMonth;
+  if (updates.lastPaidExpenseId !== undefined) payload.last_paid_expense_id = updates.lastPaidExpenseId;
+  const { error } = await supabase.from('bills').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteBill(id: string): Promise<void> {
+  const { error } = await supabase.from('bills').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// Marca a conta como paga: cria um Expense no mês atual e vincula à conta.
+export async function payBill(
+  bill: Bill,
+  userId: string,
+  attachmentUrl?: string
+): Promise<{ expense: Expense; yearMonth: string }> {
+  const today = new Date();
+  const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const expense = await createExpense({
+    userId,
+    category: bill.category,
+    name: bill.name,
+    value: bill.value,
+    note: bill.isRecurring ? 'Conta recorrente' : 'Conta',
+    attachmentUrl,
+    expenseDate: today.toISOString().slice(0, 10),
+  });
+  await updateBill(bill.id, {
+    lastPaidYearMonth: yearMonth,
+    lastPaidExpenseId: expense.id,
+  });
+  return { expense, yearMonth };
+}
+
+// Desfaz o pagamento: remove o expense vinculado e limpa os campos.
+export async function unpayBill(bill: Bill): Promise<void> {
+  if (bill.lastPaidExpenseId) {
+    await deleteExpense(bill.lastPaidExpenseId);
+  }
+  await updateBill(bill.id, {
+    lastPaidYearMonth: null,
+    lastPaidExpenseId: null,
+  });
 }
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
