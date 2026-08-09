@@ -2970,8 +2970,10 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     const dx = e.changedTouches[0].clientX - el._swipeX;
     const dy = Math.abs(e.changedTouches[0].clientY - el._swipeY);
     if (Math.abs(dx) > 60 && dy < 80) {
-      if (dx < 0) setView('list');
-      else setView('overview');
+      const order: Array<'overview' | 'list' | 'month'> = ['overview', 'list', 'month'];
+      const idx = order.indexOf(view);
+      if (dx < 0 && idx < order.length - 1) setView(order[idx + 1]);
+      else if (dx > 0 && idx > 0) setView(order[idx - 1]);
     }
   };
 
