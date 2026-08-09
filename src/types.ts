@@ -15,7 +15,7 @@ export interface Expense {
   name: string;
   value: number;
   note?: string;
-  attachmentUrl?: string;
+  attachmentUrls: string[];
   createdAt: string;
   expenseDate: string; // data real do gasto (YYYY-MM-DD)
   pending?: boolean; // aguardando sincronização offline (apenas client-side)
@@ -35,6 +35,8 @@ export interface Bill {
   dueDay: number; // 1-31
   category: string;
   isRecurring: boolean;
+  installments: number | null; // null = recorrente sem fim; N = parcelado em N vezes
+  paidCount: number; // quantas vezes já foi paga no total (usado com installments pra mostrar X/Y)
   lastPaidYearMonth: string | null; // 'YYYY-MM' — usado pra saber se está paga no mês corrente
   lastPaidExpenseId: string | null;
   createdBy: string | null;

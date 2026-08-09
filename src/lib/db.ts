@@ -10,6 +10,7 @@ function rowToExpense(row: Record<string, unknown>): Expense {
   const expenseDate = (row.expense_date as string)
     || (row.created_at as string)?.slice(0, 10)
     || new Date().toISOString().slice(0, 10);
+  const urls = Array.isArray(row.attachment_urls) ? (row.attachment_urls as string[]) : [];
   return {
     id: row.id as string,
     userId: row.user_id as string,
@@ -17,7 +18,7 @@ function rowToExpense(row: Record<string, unknown>): Expense {
     name: row.name as string,
     value: Number(row.value),
     note: row.note ? (row.note as string) : undefined,
-    attachmentUrl: row.attachment_url ? (row.attachment_url as string) : undefined,
+    attachmentUrls: urls.filter(Boolean),
     createdAt: row.created_at as string,
     expenseDate,
   };
@@ -43,7 +44,7 @@ export async function createExpense(
       name: data.name,
       value: data.value,
       note: data.note ?? null,
-      attachment_url: data.attachmentUrl ?? null,
+      attachment_urls: data.attachmentUrls ?? [],
       expense_date: data.expenseDate ?? new Date().toISOString().slice(0, 10),
     })
     .select()
@@ -56,17 +57,14 @@ export async function updateExpense(
   id: string,
   data: Partial<Omit<Expense, 'id' | 'userId' | 'createdAt'>>
 ): Promise<void> {
-  const { error } = await supabase
-    .from('expenses')
-    .update({
-      category: data.category,
-      name: data.name,
-      value: data.value,
-      note: data.note ?? null,
-      attachment_url: data.attachmentUrl ?? null,
-      expense_date: data.expenseDate,
-    })
-    .eq('id', id);
+  const payload: Record<string, unknown> = {};
+  if (data.category !== undefined) payload.category = data.category;
+  if (data.name !== undefined) payload.name = data.name;
+  if (data.value !== undefined) payload.value = data.value;
+  if (data.note !== undefined) payload.note = data.note ?? null;
+  if (data.attachmentUrls !== undefined) payload.attachment_urls = data.attachmentUrls;
+  if (data.expenseDate !== undefined) payload.expense_date = data.expenseDate;
+  const { error } = await supabase.from('expenses').update(payload).eq('id', id);
   if (error) throw error;
 }
 
@@ -278,6 +276,8 @@ function rowToBill(row: Record<string, unknown>): Bill {
     dueDay: Number(row.due_day),
     category: row.category as string,
     isRecurring: Boolean(row.is_recurring),
+    installments: row.installments != null ? Number(row.installments) : null,
+    paidCount: Number(row.paid_count ?? 0),
     lastPaidYearMonth: (row.last_paid_year_month as string) ?? null,
     lastPaidExpenseId: (row.last_paid_expense_id as string) ?? null,
     createdBy: (row.created_by as string) ?? null,
@@ -295,7 +295,7 @@ export async function getBills(): Promise<Bill[]> {
 }
 
 export async function createBill(
-  data: Omit<Bill, 'id' | 'createdAt' | 'lastPaidYearMonth' | 'lastPaidExpenseId' | 'createdBy'>,
+  data: Omit<Bill, 'id' | 'createdAt' | 'lastPaidYearMonth' | 'lastPaidExpenseId' | 'createdBy' | 'paidCount'>,
   userId: string
 ): Promise<Bill> {
   const { data: row, error } = await supabase
@@ -306,6 +306,7 @@ export async function createBill(
       due_day: data.dueDay,
       category: data.category,
       is_recurring: data.isRecurring,
+      installments: data.installments,
       created_by: userId,
     })
     .select()
@@ -324,6 +325,8 @@ export async function updateBill(
   if (updates.dueDay !== undefined) payload.due_day = updates.dueDay;
   if (updates.category !== undefined) payload.category = updates.category;
   if (updates.isRecurring !== undefined) payload.is_recurring = updates.isRecurring;
+  if (updates.installments !== undefined) payload.installments = updates.installments;
+  if (updates.paidCount !== undefined) payload.paid_count = updates.paidCount;
   if (updates.lastPaidYearMonth !== undefined) payload.last_paid_year_month = updates.lastPaidYearMonth;
   if (updates.lastPaidExpenseId !== undefined) payload.last_paid_expense_id = updates.lastPaidExpenseId;
   const { error } = await supabase.from('bills').update(payload).eq('id', id);
@@ -339,8 +342,8 @@ export async function deleteBill(id: string): Promise<void> {
 export async function payBill(
   bill: Bill,
   userId: string,
-  attachmentUrl?: string
-): Promise<{ expense: Expense; yearMonth: string }> {
+  attachmentUrls: string[] = []
+): Promise<{ expense: Expense; yearMonth: string; paidCount: number }> {
   const today = new Date();
   const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   const expense = await createExpense({
@@ -349,14 +352,16 @@ export async function payBill(
     name: bill.name,
     value: bill.value,
     note: bill.isRecurring ? 'Conta recorrente' : 'Conta',
-    attachmentUrl,
+    attachmentUrls,
     expenseDate: today.toISOString().slice(0, 10),
   });
+  const newPaidCount = (bill.paidCount ?? 0) + 1;
   await updateBill(bill.id, {
     lastPaidYearMonth: yearMonth,
     lastPaidExpenseId: expense.id,
+    paidCount: newPaidCount,
   });
-  return { expense, yearMonth };
+  return { expense, yearMonth, paidCount: newPaidCount };
 }
 
 // Desfaz o pagamento: remove o expense vinculado e limpa os campos.
@@ -364,9 +369,11 @@ export async function unpayBill(bill: Bill): Promise<void> {
   if (bill.lastPaidExpenseId) {
     await deleteExpense(bill.lastPaidExpenseId);
   }
+  const newPaidCount = Math.max(0, (bill.paidCount ?? 0) - 1);
   await updateBill(bill.id, {
     lastPaidYearMonth: null,
     lastPaidExpenseId: null,
+    paidCount: newPaidCount,
   });
 }
 

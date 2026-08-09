@@ -4,13 +4,13 @@ import type { Category } from './db';
 
 // ─── Fila de gastos pendentes (IndexedDB — suporta blobs de foto) ─────────────
 
-const DB_NAME = 'controle-gastos-offline';
+const DB_NAME = 'controle-gastos-offline-v2';
 const STORE = 'pending-expenses';
 
 export type QueuedExpense = {
   tempId: string;
-  data: Omit<Expense, 'id' | 'createdAt' | 'attachmentUrl' | 'pending'>;
-  photoBlob: Blob | null;
+  data: Omit<Expense, 'id' | 'createdAt' | 'attachmentUrls' | 'pending'>;
+  photoBlobs: Blob[];
   createdAt: string;
 };
 
@@ -29,7 +29,7 @@ function openDB(): Promise<IDBDatabase> {
 
 export async function queueExpense(
   data: QueuedExpense['data'],
-  photoBlob: Blob | null
+  photoBlobs: Blob[] = []
 ): Promise<string> {
   const tempId = `offline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const idb = await openDB();
@@ -38,7 +38,7 @@ export async function queueExpense(
     tx.objectStore(STORE).put({
       tempId,
       data,
-      photoBlob,
+      photoBlobs,
       createdAt: new Date().toISOString(),
     } satisfies QueuedExpense);
     tx.oncomplete = () => resolve();
@@ -77,14 +77,17 @@ export async function flushQueue(userId: string): Promise<number> {
   let synced = 0;
   for (const item of queued) {
     try {
-      let attachmentUrl: string | undefined;
-      if (item.photoBlob) {
-        const file = new File([item.photoBlob], 'comprovante.jpg', {
-          type: item.photoBlob.type || 'image/jpeg',
+      const attachmentUrls: string[] = [];
+      const blobs = item.photoBlobs ?? [];
+      for (let i = 0; i < blobs.length; i++) {
+        const blob = blobs[i];
+        const file = new File([blob], `comprovante-${i + 1}.jpg`, {
+          type: blob.type || 'image/jpeg',
         });
-        attachmentUrl = await db.uploadReceipt(file, userId);
+        const url = await db.uploadReceipt(file, userId);
+        attachmentUrls.push(url);
       }
-      await db.createExpense({ ...item.data, userId, attachmentUrl });
+      await db.createExpense({ ...item.data, userId, attachmentUrls });
       await removeQueued(item.tempId);
       synced++;
     } catch {
@@ -102,7 +105,7 @@ export async function getQueuedAsExpenses(): Promise<Expense[]> {
       ...q.data,
       id: q.tempId,
       createdAt: q.createdAt,
-      attachmentUrl: undefined,
+      attachmentUrls: [],
       pending: true,
     }));
   } catch {
@@ -112,7 +115,7 @@ export async function getQueuedAsExpenses(): Promise<Expense[]> {
 
 // ─── Snapshot de leitura (localStorage — sem blobs) ───────────────────────────
 
-const SNAPSHOT_KEY = 'offline_snapshot_v1';
+const SNAPSHOT_KEY = 'offline_snapshot_v2';
 
 type Snapshot = {
   expenses: Expense[];
@@ -135,7 +138,14 @@ export function saveSnapshot(expenses: Expense[], categories: Category[], users:
 export function loadSnapshot(): Snapshot | null {
   try {
     const raw = localStorage.getItem(SNAPSHOT_KEY);
-    return raw ? (JSON.parse(raw) as Snapshot) : null;
+    if (!raw) return null;
+    const snap = JSON.parse(raw) as Snapshot;
+    // Normaliza caches antigos: garante attachmentUrls como array
+    snap.expenses = (snap.expenses ?? []).map(e => ({
+      ...e,
+      attachmentUrls: Array.isArray(e.attachmentUrls) ? e.attachmentUrls : [],
+    }));
+    return snap;
   } catch {
     return null;
   }

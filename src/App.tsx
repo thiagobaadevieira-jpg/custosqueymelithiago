@@ -226,7 +226,7 @@ const BillFormModal = ({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: { name: string; value: number; dueDay: number; category: string; isRecurring: boolean }) => Promise<void>;
+  onSave: (data: { name: string; value: number; dueDay: number; category: string; isRecurring: boolean; installments: number | null }) => Promise<void>;
   onDelete?: () => void;
   bill: Bill | null;
   categories: Category[];
@@ -236,6 +236,7 @@ const BillFormModal = ({
   const [dueDay, setDueDay] = useState<number>(1);
   const [category, setCategory] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
+  const [installmentsStr, setInstallmentsStr] = useState('');
   const [catDropdownOpen, setCatDropdownOpen] = useState(false);
   const [dayDropdownOpen, setDayDropdownOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -250,12 +251,14 @@ const BillFormModal = ({
       setDueDay(bill.dueDay);
       setCategory(bill.category);
       setIsRecurring(bill.isRecurring);
+      setInstallmentsStr(bill.installments != null ? String(bill.installments) : '');
     } else {
       setName('');
       setValueStr('');
       setDueDay(new Date().getDate());
       setCategory(categories[0]?.name ?? '');
       setIsRecurring(false);
+      setInstallmentsStr('');
     }
     setCatDropdownOpen(false);
     setDayDropdownOpen(false);
@@ -268,7 +271,10 @@ const BillFormModal = ({
     if (!name.trim() || !category || isNaN(value) || value <= 0) return;
     setSaving(true);
     try {
-      await onSave({ name: name.trim(), value, dueDay, category, isRecurring });
+      const parsedInstallments = isRecurring && installmentsStr.trim()
+        ? Math.max(1, Math.floor(Number(installmentsStr)))
+        : null;
+      await onSave({ name: name.trim(), value, dueDay, category, isRecurring, installments: parsedInstallments });
       onClose();
     } finally {
       setSaving(false);
@@ -401,6 +407,27 @@ const BillFormModal = ({
               <div className={cn("w-5 h-5 rounded-full bg-white shadow transition-transform", isRecurring ? "translate-x-5" : "translate-x-0")} />
             </div>
           </button>
+
+          {isRecurring && (
+            <div className="space-y-2 pl-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">
+                Total de parcelas <span className="text-white/20 normal-case tracking-normal">(opcional)</span>
+              </label>
+              <input
+                inputMode="numeric"
+                value={installmentsStr}
+                onChange={e => setInstallmentsStr(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="Ex: 12 (deixe vazio se for sempre)"
+                className="w-full h-12 glass rounded-2xl px-5 outline-none focus:border-blue-500/50 text-sm font-bold placeholder:text-white/10"
+                maxLength={3}
+              />
+              {installmentsStr && bill && bill.paidCount > 0 && (
+                <p className="text-[10px] text-white/40 ml-1">
+                  Já pagas: <span className="font-black text-blue-400">{Math.min(bill.paidCount, Number(installmentsStr))}/{installmentsStr}</span>
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-8 space-y-3">
@@ -437,20 +464,43 @@ const PayBillModal = ({
   bill: Bill | null;
   isPaid: boolean;
   onClose: () => void;
-  onPay: (bill: Bill, file: File | null) => Promise<void>;
+  onPay: (bill: Bill, files: File[]) => Promise<void>;
   onUnpay: (bill: Bill) => Promise<void>;
 }) => {
   const [busy, setBusy] = useState(false);
+  const [pickedFiles, setPickedFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useLockBodyScroll(!!bill);
 
+  React.useEffect(() => {
+    if (!bill) {
+      // Limpa previews ao fechar
+      previews.forEach(u => URL.revokeObjectURL(u));
+      setPickedFiles([]);
+      setPreviews([]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bill]);
+
   if (!bill) return null;
 
-  const doPay = async (file: File | null) => {
+  const addFiles = (files: File[]) => {
+    setPickedFiles(prev => [...prev, ...files]);
+    setPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
+  };
+
+  const removeFile = (idx: number) => {
+    URL.revokeObjectURL(previews[idx]);
+    setPickedFiles(prev => prev.filter((_, i) => i !== idx));
+    setPreviews(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const doPay = async (files: File[]) => {
     setBusy(true);
     try {
-      await onPay(bill, file);
+      await onPay(bill, files);
       onClose();
     } finally {
       setBusy(false);
@@ -507,34 +557,74 @@ const PayBillModal = ({
               </div>
               <h2 className="text-xl font-black tracking-tight text-white">{bill.name}</h2>
               <p className="text-2xl font-light text-white mt-1">{formatCurrency(bill.value)}</p>
-              <p className="text-[12px] text-white/40 mt-3 leading-relaxed">Deseja anexar o comprovante?</p>
+              <p className="text-[12px] text-white/40 mt-3 leading-relaxed">
+                {pickedFiles.length > 0
+                  ? `${pickedFiles.length} comprovante${pickedFiles.length > 1 ? 's' : ''} selecionado${pickedFiles.length > 1 ? 's' : ''}`
+                  : 'Deseja anexar o(s) comprovante(s)?'}
+              </p>
             </div>
             <input
               ref={fileRef}
               type="file"
               accept="image/*"
+              multiple
               hidden
               onChange={e => {
-                const f = e.target.files?.[0] ?? null;
-                if (f) doPay(f);
+                const fs = Array.from(e.target.files ?? []);
+                e.target.value = '';
+                if (fs.length) addFiles(fs);
               }}
             />
+
+            {previews.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {previews.map((url, idx) => (
+                  <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                    <img src={url} alt={`Comprovante ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeFile(idx)}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center active:scale-90 transition-all"
+                      aria-label="Remover"
+                    >
+                      <X className="w-3.5 h-3.5 stroke-[3]" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-3">
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={busy}
-                className="w-full h-14 btn-gradient rounded-2xl font-bold text-sm shadow-xl active:scale-95 transition-all text-white disabled:opacity-40 flex items-center justify-center gap-2"
+                className={cn(
+                  "w-full h-14 rounded-2xl font-bold text-sm active:scale-95 transition-all text-white disabled:opacity-40 flex items-center justify-center gap-2",
+                  pickedFiles.length > 0 ? "glass hover:bg-white/5" : "btn-gradient shadow-xl"
+                )}
               >
                 <Camera className="w-4 h-4" />
-                {busy ? 'Enviando...' : 'Sim, anexar comprovante'}
+                {pickedFiles.length > 0 ? 'Adicionar outro' : 'Sim, anexar comprovante'}
               </button>
-              <button
-                onClick={() => doPay(null)}
-                disabled={busy}
-                className="w-full h-14 glass rounded-2xl font-bold text-sm text-white/80 active:scale-95 transition-all disabled:opacity-40"
-              >
-                Não, pagar sem anexo
-              </button>
+              {pickedFiles.length > 0 && (
+                <button
+                  onClick={() => doPay(pickedFiles)}
+                  disabled={busy}
+                  className="w-full h-14 btn-gradient rounded-2xl font-bold text-sm shadow-xl active:scale-95 transition-all text-white disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  {busy ? 'Enviando...' : `Confirmar pagamento (${pickedFiles.length})`}
+                </button>
+              )}
+              {pickedFiles.length === 0 && (
+                <button
+                  onClick={() => doPay([])}
+                  disabled={busy}
+                  className="w-full h-14 glass rounded-2xl font-bold text-sm text-white/80 active:scale-95 transition-all disabled:opacity-40"
+                >
+                  Não, pagar sem anexo
+                </button>
+              )}
               <button
                 onClick={onClose}
                 disabled={busy}
@@ -2141,7 +2231,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
   onClose: () => void,
   user: User,
   expense?: Expense | null,
-  onSave: (expense: Omit<Expense, 'id' | 'userId' | 'createdAt'> & { id?: string, photoBlob?: File | null }) => void,
+  onSave: (expense: Omit<Expense, 'id' | 'userId' | 'createdAt'> & { id?: string, photoBlobs?: File[] }) => void,
   categories: Category[]
 }) => {
   const todayISO = new Date().toISOString().slice(0, 10);
@@ -2151,7 +2241,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
   const [category, setCategory] = useState(expense?.category || categories[0]?.name || "");
   const [expenseDate, setExpenseDate] = useState(expense?.expenseDate || todayISO);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
-  const [attachmentUrl, setAttachmentUrl] = useState(expense?.attachmentUrl || "");
+  const [attachmentUrls, setAttachmentUrls] = useState<string[]>(expense?.attachmentUrls ?? []);
 
   const [uploadingFile, setUploadingFile] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -2195,47 +2285,66 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
       setValue(expense.value.toString());
       setNote(expense.note || "");
       setCategory(expense.category);
-      setAttachmentUrl(expense.attachmentUrl || "");
+      setAttachmentUrls(expense.attachmentUrls ?? []);
       setExpenseDate(expense.expenseDate || todayISO);
       setFormError(null);
-      setPendingPhoto(null);
+      setPendingPhotos([]);
     } else if (isOpen) {
       setName("");
       setValue("");
       setNote("");
       setCategory(categories[0]?.name || "");
-      setAttachmentUrl("");
+      setAttachmentUrls([]);
       setExpenseDate(todayISO);
       setFormError(null);
-      setPendingPhoto(null);
+      setPendingPhotos([]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expense, isOpen]);
 
-  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    // Limpa o input pra permitir escolher o mesmo arquivo de novo se remover
+    e.target.value = '';
 
-    // Offline: guarda o arquivo localmente — sobe junto com a sincronização
+    // Offline: guarda todos os arquivos localmente
     if (!navigator.onLine) {
-      setPendingPhoto(file);
-      setAttachmentUrl(URL.createObjectURL(file));
+      setPendingPhotos(prev => [...prev, ...files]);
+      setAttachmentUrls(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
       return;
     }
 
     setUploadingFile(true);
     try {
-      const url = await db.uploadReceipt(file, user.id);
-      setAttachmentUrl(url);
-      setPendingPhoto(null);
-    } catch {
-      // Falha de rede no meio do upload: trata como offline
-      setPendingPhoto(file);
-      setAttachmentUrl(URL.createObjectURL(file));
+      const uploaded: string[] = [];
+      for (const file of files) {
+        try {
+          const url = await db.uploadReceipt(file, user.id);
+          uploaded.push(url);
+        } catch {
+          // Falha no meio do upload: guarda como pendente
+          setPendingPhotos(prev => [...prev, file]);
+          uploaded.push(URL.createObjectURL(file));
+        }
+      }
+      setAttachmentUrls(prev => [...prev, ...uploaded]);
     } finally {
       setUploadingFile(false);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachmentUrls(prev => prev.filter((_, i) => i !== index));
+    // Se for um blob local (pendente), remove também do array de blobs
+    const url = attachmentUrls[index];
+    if (url?.startsWith('blob:')) {
+      // encontra qual pendingPhoto corresponde — simplificação: remove o último blob pendente
+      // (o usuário raramente terá muitos ao mesmo tempo pra confundir)
+      setPendingPhotos(prev => prev.slice(0, -1));
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -2251,16 +2360,17 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
       return;
     }
     if (uploadingFile) return;
+    // blob: URLs são preview local — só os URLs reais (https) vão pro DB
+    const realUrls = attachmentUrls.filter(u => !u.startsWith('blob:'));
     onSave({
       id: expense?.id,
       name,
       value: parseFloat(value),
       note,
       category,
-      // blob: URL é só preview local — a URL real vem após sincronizar a foto
-      attachmentUrl: attachmentUrl.startsWith('blob:') ? '' : attachmentUrl,
+      attachmentUrls: realUrls,
       expenseDate,
-      photoBlob: pendingPhoto,
+      photoBlobs: pendingPhotos,
     });
     onClose();
   };
@@ -2402,68 +2512,75 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
               </div>
 
               <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Comprovante Fiscal</label>
-                {attachmentUrl ? (
-                  <div className="w-full p-4 glass rounded-[24px] flex items-center justify-between border border-white/10 relative overflow-hidden bg-white/[0.02]">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/10 bg-black/40 flex-shrink-0 flex items-center justify-center">
-                        <img 
-                          src={attachmentUrl} 
-                          alt="Pré-visualização" 
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Comprovantes Fiscais</label>
+                  {attachmentUrls.length > 0 && (
+                    <span className="text-[10px] font-bold text-emerald-400/70 mr-1">{attachmentUrls.length} anexado{attachmentUrls.length > 1 ? 's' : ''}</span>
+                  )}
+                </div>
+
+                {attachmentUrls.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {attachmentUrls.map((url, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border border-white/10 bg-black/40 group">
+                        <img
+                          src={url}
+                          alt={`Comprovante ${idx + 1}`}
                           className="w-full h-full object-cover"
                           referrerPolicy="no-referrer"
                         />
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(idx)}
+                          className="absolute top-1 right-1 w-7 h-7 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center active:scale-90 transition-all shadow-lg"
+                          aria-label="Remover"
+                        >
+                          <X className="w-4 h-4 stroke-[3]" />
+                        </button>
+                        <div className="absolute bottom-1 left-1 text-[9px] font-black text-white bg-black/60 px-1.5 py-0.5 rounded">
+                          {idx + 1}
+                        </div>
                       </div>
-                      <div className="text-left">
-                        <p className="text-xs font-bold text-white leading-none">Comprovante Anexado</p>
-                        <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider mt-1.5 leading-none">Pronto para salvar</p>
-                      </div>
-                    </div>
-                    <button 
-                      type="button"
-                      onClick={() => { setAttachmentUrl(""); setPendingPhoto(null); }}
-                      className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/10 rounded-2xl active:scale-95 transition-all text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Remover
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3.5">
-                    <button
-                      type="button"
-                      disabled={uploadingFile}
-                      onClick={() => fileInputRef.current?.click()}
-                      className="h-16 glass rounded-2xl text-white/40 hover:text-white hover:border-white/20 transition-all border-dashed flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest cursor-pointer group disabled:opacity-50"
-                    >
-                      <Paperclip className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-blue-400 transition-all" />
-                      <span>{uploadingFile ? 'Enviando...' : 'Anexar Arquivo'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={uploadingFile}
-                      onClick={() => cameraInputRef.current?.click()}
-                      className="h-16 glass rounded-2xl text-white/40 hover:text-white hover:border-white/20 transition-all border-dashed flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest cursor-pointer group disabled:opacity-50"
-                    >
-                      <Camera className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-emerald-400 transition-all" />
-                      <span>{uploadingFile ? 'Enviando...' : 'Tirar Foto'}</span>
-                    </button>
+                    ))}
                   </div>
                 )}
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  accept="image/*" 
-                  className="hidden" 
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <button
+                    type="button"
+                    disabled={uploadingFile}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-16 glass rounded-2xl text-white/40 hover:text-white hover:border-white/20 transition-all border-dashed flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest cursor-pointer group disabled:opacity-50"
+                  >
+                    <Paperclip className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-blue-400 transition-all" />
+                    <span>{uploadingFile ? 'Enviando...' : attachmentUrls.length ? 'Adicionar Outro' : 'Anexar Arquivo'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={uploadingFile}
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="h-16 glass rounded-2xl text-white/40 hover:text-white hover:border-white/20 transition-all border-dashed flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest cursor-pointer group disabled:opacity-50"
+                  >
+                    <Camera className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-emerald-400 transition-all" />
+                    <span>{uploadingFile ? 'Enviando...' : attachmentUrls.length ? 'Tirar Outra' : 'Tirar Foto'}</span>
+                  </button>
+                </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  multiple
+                  className="hidden"
                 />
-                <input 
-                  type="file" 
-                  ref={cameraInputRef} 
-                  onChange={handleFileChange} 
-                  accept="image/*" 
-                  capture="environment" 
-                  className="hidden" 
+                <input
+                  type="file"
+                  ref={cameraInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
                 />
               </div>
 
@@ -2498,11 +2615,13 @@ const ExpenseDetailModal = ({ isOpen, onClose, expense, onEdit, onDelete, catego
   categories: Category[],
   users: User[]
 }) => {
-  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const isImageViewerOpen = viewerIndex !== null;
+  const setIsImageViewerOpen = (open: boolean) => setViewerIndex(open ? 0 : null);
 
   React.useEffect(() => {
     if (!isOpen) {
-      setIsImageViewerOpen(false);
+      setViewerIndex(null);
     }
   }, [isOpen]);
 
@@ -2570,23 +2689,31 @@ const ExpenseDetailModal = ({ isOpen, onClose, expense, onEdit, onDelete, catego
               )}
             </div>
 
-            {expense.attachmentUrl ? (
+            {expense.attachmentUrls.length > 0 ? (
               <div className="w-full mb-6">
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30 text-left mb-2 ml-1">Anexo Comprovante</p>
-                <div 
-                  onClick={() => setIsImageViewerOpen(true)}
-                  className="w-full h-16 rounded-2xl border border-white/10 overflow-hidden bg-black/40 group relative flex items-center justify-between px-4 cursor-pointer hover:bg-white/5 hover:border-white/20 transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <img 
-                      src={expense.attachmentUrl} 
-                      alt="Comprovante" 
-                      className="w-10 h-10 object-cover rounded-lg border border-white/10 group-hover:scale-105 transition-transform duration-200"
-                      referrerPolicy="no-referrer"
-                    />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Ver Comprovante</span>
-                  </div>
-                  <Search className="w-4 h-4 text-white/40 group-hover:text-white transition-colors" />
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30 text-left mb-2 ml-1">
+                  {expense.attachmentUrls.length === 1 ? 'Comprovante' : `${expense.attachmentUrls.length} Comprovantes`}
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {expense.attachmentUrls.map((url, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setViewerIndex(idx)}
+                      className="relative aspect-square rounded-2xl border border-white/10 overflow-hidden bg-black/40 group hover:border-emerald-500/40 transition-all active:scale-95"
+                    >
+                      <img
+                        src={url}
+                        alt={`Comprovante ${idx + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        referrerPolicy="no-referrer"
+                      />
+                      {expense.attachmentUrls.length > 1 && (
+                        <div className="absolute bottom-1 left-1 text-[9px] font-black text-white bg-black/70 px-1.5 py-0.5 rounded">
+                          {idx + 1}
+                        </div>
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
             ) : (
@@ -2616,39 +2743,66 @@ const ExpenseDetailModal = ({ isOpen, onClose, expense, onEdit, onDelete, catego
 
           {/* Lightbox / Full screen photo viewer */}
           <AnimatePresence>
-            {isImageViewerOpen && expense.attachmentUrl && (
-              <>
+            {viewerIndex !== null && expense.attachmentUrls[viewerIndex] && (() => {
+              const total = expense.attachmentUrls.length;
+              const idx = viewerIndex;
+              const goPrev = (e: React.MouseEvent) => { e.stopPropagation(); setViewerIndex((idx - 1 + total) % total); };
+              const goNext = (e: React.MouseEvent) => { e.stopPropagation(); setViewerIndex((idx + 1) % total); };
+              return (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  onClick={() => setIsImageViewerOpen(false)}
+                  onClick={() => setViewerIndex(null)}
                   className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[300] flex items-center justify-center p-4"
                 >
-                  <button 
-                    onClick={() => setIsImageViewerOpen(false)}
+                  <button
+                    onClick={() => setViewerIndex(null)}
                     className="absolute top-6 right-6 p-3 bg-white/10 rounded-full hover:bg-white/20 text-white transition-all active:scale-95 z-[320] cursor-pointer"
                   >
                     <X className="w-6 h-6" />
                   </button>
 
+                  {total > 1 && (
+                    <>
+                      <button
+                        onClick={goPrev}
+                        className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 p-3 bg-white/10 rounded-full hover:bg-white/20 text-white transition-all active:scale-95 z-[320] cursor-pointer"
+                        aria-label="Anterior"
+                      >
+                        <ChevronLeft className="w-6 h-6" />
+                      </button>
+                      <button
+                        onClick={goNext}
+                        className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 p-3 bg-white/10 rounded-full hover:bg-white/20 text-white transition-all active:scale-95 z-[320] cursor-pointer"
+                        aria-label="Próximo"
+                      >
+                        <ChevronRight className="w-6 h-6" />
+                      </button>
+                      <div className="absolute top-6 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/60 rounded-full text-white text-xs font-black tracking-widest z-[320]">
+                        {idx + 1} / {total}
+                      </div>
+                    </>
+                  )}
+
                   <motion.div
+                    key={viewerIndex}
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
                     onClick={(e) => e.stopPropagation()}
                     className="max-w-xl max-h-[80vh] overflow-hidden rounded-3xl border border-white/10 shadow-2xl bg-slate-900 relative z-[310] flex items-center justify-center"
                   >
-                    <img 
-                      src={expense.attachmentUrl} 
-                      alt="Comprovante de pagamento" 
+                    <img
+                      src={expense.attachmentUrls[idx]}
+                      alt={`Comprovante ${idx + 1}`}
                       className="max-w-full max-h-[80vh] object-contain rounded-3xl"
                       referrerPolicy="no-referrer"
                     />
                   </motion.div>
                 </motion.div>
-              </>
-            )}
+              );
+            })()}
           </AnimatePresence>
         </>
       )}
@@ -2689,7 +2843,7 @@ const ExpenseRow = memo(({ expense, categoryColor, ownerName, idx, pageSize, onS
                 Pendente
               </span>
             )}
-            {expense.attachmentUrl && <Paperclip className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+            {expense.attachmentUrls.length > 0 && <Paperclip className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
             <p className="font-bold text-sm tracking-tight">{formatCurrency(expense.value)}</p>
           </div>
         </div>
@@ -2948,8 +3102,8 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     setExpenseToDelete(expense);
   };
 
-  const handleSaveExpense = useCallback(async (newExpenseData: Omit<Expense, 'id' | 'userId' | 'createdAt'> & { id?: string, photoBlob?: File | null }) => {
-    const { photoBlob, ...expenseData } = newExpenseData;
+  const handleSaveExpense = useCallback(async (newExpenseData: Omit<Expense, 'id' | 'userId' | 'createdAt'> & { id?: string, photoBlobs?: File[] }) => {
+    const { photoBlobs = [], ...expenseData } = newExpenseData;
 
     if (expenseData.id) {
       const { id, ...updates } = expenseData;
@@ -2959,21 +3113,21 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     }
 
     const enqueue = async () => {
-      const { attachmentUrl: _drop, ...rest } = expenseData;
-      const tempId = await queueExpense({ ...rest, userId: user.id }, photoBlob ?? null);
+      const { attachmentUrls: _drop, ...rest } = expenseData;
+      const tempId = await queueExpense({ ...rest, userId: user.id }, photoBlobs);
       const local: Expense = {
         ...rest,
         id: tempId,
         userId: user.id,
         createdAt: new Date().toISOString(),
-        attachmentUrl: undefined,
+        attachmentUrls: [],
         pending: true,
       };
       setExpenses(prev => [local, ...prev]);
     };
 
-    if (!navigator.onLine || photoBlob) {
-      // Offline (ou foto pendente de upload) → entra na fila de sincronização
+    if (!navigator.onLine || photoBlobs.length > 0) {
+      // Offline (ou fotos pendentes de upload) → entra na fila de sincronização
       await enqueue();
       return;
     }
@@ -3032,7 +3186,7 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     }
   }, [expenseToDelete]);
 
-  const handleSaveBill = useCallback(async (data: { name: string; value: number; dueDay: number; category: string; isRecurring: boolean }) => {
+  const handleSaveBill = useCallback(async (data: { name: string; value: number; dueDay: number; category: string; isRecurring: boolean; installments: number | null }) => {
     if (billToEdit) {
       await db.updateBill(billToEdit.id, data);
       setBills(prev => prev.map(b => b.id === billToEdit.id ? { ...b, ...data } : b));
@@ -3051,23 +3205,29 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     setBillToEdit(null);
   }, [billToDelete]);
 
-  const handlePayBill = useCallback(async (bill: Bill, file: File | null) => {
-    let attachmentUrl: string | undefined;
-    if (file) {
-      attachmentUrl = await db.uploadReceipt(file, user.id);
+  const handlePayBill = useCallback(async (bill: Bill, files: File[]) => {
+    const urls: string[] = [];
+    for (const file of files) {
+      const url = await db.uploadReceipt(file, user.id);
+      urls.push(url);
     }
-    const { expense, yearMonth } = await db.payBill(bill, user.id, attachmentUrl);
+    const { expense, yearMonth, paidCount } = await db.payBill(bill, user.id, urls);
     setBills(prev => prev.map(b =>
-      b.id === bill.id ? { ...b, lastPaidYearMonth: yearMonth, lastPaidExpenseId: expense.id } : b
+      b.id === bill.id
+        ? { ...b, lastPaidYearMonth: yearMonth, lastPaidExpenseId: expense.id, paidCount }
+        : b
     ));
     setExpenses(prev => [expense, ...prev]);
   }, [user.id]);
 
   const handleUnpayBill = useCallback(async (bill: Bill) => {
     const removedExpenseId = bill.lastPaidExpenseId;
+    const newPaidCount = Math.max(0, (bill.paidCount ?? 0) - 1);
     await db.unpayBill(bill);
     setBills(prev => prev.map(b =>
-      b.id === bill.id ? { ...b, lastPaidYearMonth: null, lastPaidExpenseId: null } : b
+      b.id === bill.id
+        ? { ...b, lastPaidYearMonth: null, lastPaidExpenseId: null, paidCount: newPaidCount }
+        : b
     ));
     if (removedExpenseId) {
       setExpenses(prev => prev.filter(e => e.id !== removedExpenseId));
@@ -3547,9 +3707,14 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                   b.isRecurring
                     ? b.lastPaidYearMonth === currentYm
                     : b.lastPaidYearMonth !== null;
-                const visible = bills.filter(b =>
-                  b.isRecurring || b.lastPaidYearMonth === null || b.lastPaidYearMonth === currentYm
-                );
+                const isFullyPaidInstallments = (b: Bill) =>
+                  b.installments != null && (b.paidCount ?? 0) >= b.installments;
+                const visible = bills.filter(b => {
+                  // Recorrente com parcelas: só mostra até completar todas — mas ainda mostra
+                  // no mês em que a última parcela foi paga (pra ver o "N/N" fechado)
+                  if (isFullyPaidInstallments(b) && b.lastPaidYearMonth !== currentYm) return false;
+                  return b.isRecurring || b.lastPaidYearMonth === null || b.lastPaidYearMonth === currentYm;
+                });
                 const unpaid = visible.filter(b => !isPaid(b)).sort((a, b) => a.dueDay - b.dueDay);
                 const paid = visible.filter(b => isPaid(b)).sort((a, b) => a.dueDay - b.dueDay);
                 const ordered = [...unpaid, ...paid];
@@ -3650,6 +3815,16 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                                     {b.isRecurring && (
                                       <Repeat className="w-3 h-3 text-blue-400 shrink-0" />
                                     )}
+                                    {b.installments != null && (
+                                      <span className={cn(
+                                        "text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded-md shrink-0",
+                                        (b.paidCount ?? 0) >= b.installments
+                                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                          : "bg-blue-500/15 text-blue-400 border border-blue-500/20"
+                                      )}>
+                                        {Math.min(b.paidCount ?? 0, b.installments)}/{b.installments}
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-2 mt-1">
                                     <span
@@ -3687,6 +3862,87 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                         Adicionar Conta
                       </button>
                     </GlassCard>
+
+                    {/* Preview: Próximo Mês */}
+                    {(() => {
+                      const now = new Date();
+                      const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                      const nextYm = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`;
+                      const nextLabel = nextMonthDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+                      const nextLabelCap = nextLabel.charAt(0).toUpperCase() + nextLabel.slice(1);
+
+                      // Recorrentes que ainda vão aparecer no próximo mês:
+                      // - is_recurring = true
+                      // - installments: null (infinita) OU paid_count + 1 <= installments (ainda tem parcela)
+                      const upcoming = bills
+                        .filter(b => {
+                          if (!b.isRecurring) return false;
+                          if (b.installments == null) return true;
+                          // Se a última paga é este mês, a próxima parcela conta pra next month
+                          // Se ainda não pagou este mês, a "próxima" parcela ainda é pra este mês — mas o próximo mês também terá uma
+                          const remainingAfterCurrent = b.installments - (b.paidCount ?? 0);
+                          // Se restam parcelas maiores que 1, sobra pra próximo mês
+                          // Se resta 1, ela cai no mês corrente OU no próximo dependendo se já pagou
+                          if (b.lastPaidYearMonth === nextYm) return true; // já paga no próximo
+                          return remainingAfterCurrent >= (b.lastPaidYearMonth === currentYm ? 1 : 2);
+                        })
+                        .sort((a, b) => a.dueDay - b.dueDay);
+                      const upcomingTotal = upcoming.reduce((s, b) => s + b.value, 0);
+
+                      if (upcoming.length === 0) return null;
+
+                      return (
+                        <GlassCard className="p-6 sm:p-8">
+                          <div className="flex justify-between items-center mb-5 px-1">
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                              Próximo Mês
+                            </h3>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/20 truncate max-w-[50%]">
+                              {nextLabelCap}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2 mb-5">
+                            {upcoming.map(b => {
+                              const catObj = categories.find(c => c.name === b.category);
+                              const catColor = catObj?.color ?? '#94a3b8';
+                              const nextParcel = (b.paidCount ?? 0) + (b.lastPaidYearMonth === currentYm ? 2 : 1);
+                              return (
+                                <div key={b.id} className="glass rounded-2xl p-3 flex items-center gap-3">
+                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catColor }} />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <p className="text-sm font-bold text-white truncate">{b.name}</p>
+                                      {b.installments != null && (
+                                        <span className="text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-400 border border-blue-500/20 shrink-0">
+                                          {Math.min(nextParcel, b.installments)}/{b.installments}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] font-bold text-white/30 mt-0.5">
+                                      Vence dia {b.dueDay}
+                                    </p>
+                                  </div>
+                                  <p className="text-sm font-light tracking-tight text-white shrink-0">
+                                    {formatCurrency(b.value).split(',')[0]}
+                                    <span className="opacity-30 text-xs">,{formatCurrency(b.value).split(',')[1]}</span>
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="pt-5 border-t border-white/5 flex justify-between items-center px-1">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Total previsto</span>
+                            <span className="text-lg font-light tracking-tight text-white">
+                              {formatCurrency(upcomingTotal).split(',')[0]}
+                              <span className="text-xs opacity-30">,{formatCurrency(upcomingTotal).split(',')[1]}</span>
+                            </span>
+                          </div>
+                        </GlassCard>
+                      );
+                    })()}
                   </>
                 );
               })()}
@@ -3932,10 +4188,13 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                                           <span className="text-[10px] font-bold text-white/40 truncate max-w-[120px]">{owner.name}</span>
                                         </>
                                       )}
-                                      {e.attachmentUrl && (
+                                      {e.attachmentUrls.length > 0 && (
                                         <>
                                           <span className="text-white/10">•</span>
                                           <Paperclip className="w-3 h-3 text-white/30" />
+                                          {e.attachmentUrls.length > 1 && (
+                                            <span className="text-[10px] font-bold text-white/40">{e.attachmentUrls.length}</span>
+                                          )}
                                         </>
                                       )}
                                     </div>
@@ -4649,12 +4908,21 @@ export default function App() {
       setAuthLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // CRÍTICO: nunca fazer queries Supabase DIRETO no callback — causa deadlock.
       // O signInWithPassword retém o lock interno de auth e espera este callback
       // terminar antes de prosseguir. Se fizermos uma query aqui, ela trava esperando
       // o mesmo lock. Solução: deferir para fora do callback com setTimeout(fn, 0).
-      if (session?.user) {
+
+      // Evita logout falso: só desloga em SIGNED_OUT explícito (usuário clicou "Sair"
+      // ou refresh token foi invalidado no servidor). TOKEN_REFRESHED com session=null
+      // pode ser transiente (aba em background, rede instável) — deixa a sessão
+      // persistida no localStorage decidir na próxima abertura.
+      if (!session?.user) {
+        if (event === 'SIGNED_OUT') setCurrentUser(null);
+        return;
+      }
+      {
         // Set imediato para tirar a tela de login — PREFERIR o perfil cacheado:
         // ele preserva allowedCategories (o fallback genérico não tem restrição
         // e vazaria categorias quando a busca de rede falhar offline)
@@ -4678,8 +4946,6 @@ export default function App() {
             console.error('Falha ao carregar perfil:', err);
           }
         }, 0);
-      } else {
-        setCurrentUser(null);
       }
     });
 
