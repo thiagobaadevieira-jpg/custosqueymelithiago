@@ -66,14 +66,16 @@ const CategorySettingsModal = ({
   categories,
   onAdd,
   onDelete,
-  onEdit
+  onEdit,
+  onColorChange,
 }: {
   isOpen: boolean,
   onClose: () => void,
   categories: Category[],
   onAdd: (name: string) => void,
   onDelete: (name: string) => void,
-  onEdit: (oldName: string, newName: string) => void
+  onEdit: (oldName: string, newName: string) => void,
+  onColorChange: (name: string, color: string) => void,
 }) => {
   const [newCatName, setNewCatName] = useState("");
   const [editingCatName, setEditingCatName] = useState<string | null>(null);
@@ -132,7 +134,18 @@ const CategorySettingsModal = ({
                     editingCatName === cat.name && "border-blue-500/30 bg-blue-500/5 shadow-lg shadow-blue-500/10"
                   )}>
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-3 h-3 rounded-full bg-white shrink-0" />
+                      <label
+                        className="relative w-4 h-4 rounded-full shrink-0 cursor-pointer transition-transform hover:scale-110 active:scale-95"
+                        style={{ backgroundColor: cat.color, color: cat.color, boxShadow: `0 0 10px ${cat.color}, 0 0 2px ${cat.color}` }}
+                        title="Escolher cor"
+                      >
+                        <input
+                          type="color"
+                          value={cat.color}
+                          onChange={(e) => onColorChange(cat.name, e.target.value)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                      </label>
                       
                       {editingCatName === cat.name ? (
                         <input 
@@ -3002,6 +3015,14 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     setCategories(prev => prev.filter(c => c.name !== name));
   }, [categories]);
 
+  const handleChangeCategoryColor = useCallback(async (name: string, color: string) => {
+    const cat = categories.find(c => c.name === name);
+    if (!cat?.id) return;
+    // Update local state imediato pra UX fluida enquanto o color picker está sendo arrastado
+    setCategories(prev => prev.map(c => c.name === name ? { ...c, color } : c));
+    await db.updateCategory(cat.id, { color });
+  }, [categories]);
+
   const confirmDelete = useCallback(async () => {
     if (expenseToDelete) {
       await db.deleteExpense(expenseToDelete.id);
@@ -4491,6 +4512,7 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
         onAdd={handleAddCategory}
         onDelete={handleDeleteCategory}
         onEdit={handleEditCategory}
+        onColorChange={handleChangeCategoryColor}
       />
       <ExportModal
         isOpen={isExportOpen}
