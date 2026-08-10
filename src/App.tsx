@@ -183,15 +183,11 @@ const CategorySettingsModal = ({
             <div className="pt-6 border-t border-white/5 space-y-4">
               <p className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Nova Categoria</p>
               <div className="flex gap-2">
-                <input
+                <input 
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
                   placeholder="Nome da categoria..."
-                  autoCorrect="on"
-                  autoCapitalize="words"
-                  spellCheck
-                  lang="pt-BR"
                   className="flex-1 h-14 glass rounded-2xl px-5 outline-none focus:border-blue-500/50 transition-colors text-base font-bold placeholder:text-white/5"
                 />
                 <button 
@@ -303,10 +299,6 @@ const BillFormModal = ({
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Ex: Aluguel, Netflix..."
-              autoCorrect="on"
-              autoCapitalize="words"
-              spellCheck
-              lang="pt-BR"
               className="w-full h-14 glass rounded-2xl px-5 outline-none focus:border-blue-500/50 text-base font-bold placeholder:text-white/10"
               maxLength={60}
             />
@@ -827,10 +819,6 @@ const NotificationSettingsModal = ({
                   onChange={(e) => onTitleChange(e.target.value)}
                   maxLength={50}
                   placeholder="Ex: Gastos Queymeli e Thiago"
-                  autoCorrect="on"
-                  autoCapitalize="sentences"
-                  spellCheck
-                  lang="pt-BR"
                   className="w-full h-12 glass rounded-2xl px-5 outline-none focus:border-blue-500/50 transition-colors text-base font-bold placeholder:text-white/10"
                 />
               </div>
@@ -843,10 +831,6 @@ const NotificationSettingsModal = ({
                   maxLength={150}
                   rows={3}
                   placeholder="Ex: Você lembrou de anotar seus gastos hoje?"
-                  autoCorrect="on"
-                  autoCapitalize="sentences"
-                  spellCheck
-                  lang="pt-BR"
                   className="w-full glass rounded-2xl px-5 py-3 outline-none focus:border-blue-500/50 transition-colors text-base font-medium placeholder:text-white/10 resize-none"
                 />
                 <p className="text-[9px] text-white/20 text-right pr-1">{message.length}/150</p>
@@ -2427,9 +2411,6 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                     if (formError) setFormError(null);
                   }}
                   placeholder="Descreva o nome do gasto..."
-                  autoCorrect="on"
-                  autoCapitalize="sentences"
-                  spellCheck
                   className={cn(
                     "w-full h-16 glass rounded-2xl px-6 text-xl outline-none focus:border-blue-500/50 transition-colors placeholder:text-white/5 font-bold",
                     formError && !name.trim() && "border-red-500/50"
@@ -2526,10 +2507,6 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                   onFocus={keepFieldVisible}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Detalhes que ajudam no fechamento..."
-                  autoCorrect="on"
-                  autoCapitalize="sentences"
-                  spellCheck
-                  lang="pt-BR"
                   className="w-full h-32 glass rounded-3xl p-6 outline-none focus:border-blue-500/50 transition-colors resize-none placeholder:text-white/5 font-medium text-base"
                 />
               </div>
