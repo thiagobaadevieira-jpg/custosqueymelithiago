@@ -3914,8 +3914,8 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                               // Se ainda não pagou este mês: assume que vai pagar, próxima = paidCount + 2
                               const nextParcel = (b.paidCount ?? 0) + (b.lastPaidYearMonth === currentYm ? 1 : 2);
                               return (
-                                <div key={b.id} className="glass rounded-2xl p-3 flex items-center gap-3">
-                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catColor }} />
+                                <div key={b.id} className="glass rounded-2xl p-4 flex items-center gap-3">
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: catColor }} />
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 min-w-0">
                                       <p className="text-sm font-bold text-white truncate">{b.name}</p>
@@ -3925,9 +3925,17 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                                         </span>
                                       )}
                                     </div>
-                                    <p className="text-[10px] font-bold text-white/30 mt-0.5">
-                                      Vence dia {b.dueDay}
-                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span
+                                        className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                                        style={{ backgroundColor: `${catColor}20`, color: catColor }}
+                                      >
+                                        {b.category}
+                                      </span>
+                                      <span className="text-[10px] font-bold text-white/40">
+                                        Vence dia {b.dueDay}
+                                      </span>
+                                    </div>
                                   </div>
                                   <p className="text-sm font-light tracking-tight text-white shrink-0">
                                     {formatCurrency(b.value).split(',')[0]}
