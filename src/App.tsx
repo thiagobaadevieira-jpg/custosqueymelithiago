@@ -7,7 +7,6 @@ import { supabase } from "@/src/lib/supabase";
 import * as db from "@/src/lib/db";
 import type { Category } from "@/src/lib/db";
 import { queueExpense, flushQueue, saveSnapshot, loadSnapshot, getQueuedAsExpenses, saveCachedProfile, loadCachedProfile } from "@/src/lib/offline";
-import { useLanguageTool, GrammarSuggestions } from "@/src/lib/grammar";
 
 const INITIAL_CATEGORIES: Category[] = [
   { name: "Alimentação", color: "#f87171", initials: "AL" },
@@ -2321,10 +2320,6 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
 
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
 
-  // Correção gramatical em tempo real via LanguageTool
-  const { matches: noteMatches, loading: noteLtLoading } = useLanguageTool(note);
-  const { matches: nameMatches, loading: nameLtLoading } = useLanguageTool(name);
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
@@ -2440,13 +2435,6 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                     formError && !name.trim() && "border-red-500/50"
                   )}
                 />
-                <GrammarSuggestions
-                  text={name}
-                  matches={nameMatches}
-                  loading={nameLtLoading}
-                  onApply={(newText) => setName(newText)}
-                  maxVisible={2}
-                />
               </div>
 
               <div className="space-y-3 relative">
@@ -2543,12 +2531,6 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                   spellCheck
                   lang="pt-BR"
                   className="w-full h-32 glass rounded-3xl p-6 outline-none focus:border-blue-500/50 transition-colors resize-none placeholder:text-white/5 font-medium text-base"
-                />
-                <GrammarSuggestions
-                  text={note}
-                  matches={noteMatches}
-                  loading={noteLtLoading}
-                  onApply={(newText) => setNote(newText)}
                 />
               </div>
 
