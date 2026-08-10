@@ -3798,12 +3798,15 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                                 <button
                                   onClick={() => setBillToPay(b)}
                                   className={cn(
-                                    "w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 transition-all active:scale-90",
-                                    paid ? "bg-emerald-500 border-emerald-500" : "border-white/20 hover:border-white/40"
+                                    "shrink-0 h-9 px-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-1.5",
+                                    paid
+                                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25"
+                                      : "btn-gradient text-white shadow-lg shadow-blue-500/20"
                                   )}
                                   aria-label={paid ? "Marcar como não paga" : "Marcar como paga"}
                                 >
-                                  {paid && <Check className="w-4 h-4 text-white stroke-[3]" />}
+                                  {paid && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                  {paid ? 'Pago' : 'Pagar'}
                                 </button>
 
                                 <button
