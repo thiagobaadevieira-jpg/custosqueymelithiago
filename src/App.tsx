@@ -3739,26 +3739,26 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-3 mb-5">
-                        <div className="glass rounded-2xl p-3 sm:p-4 text-center">
+                      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
+                        <div className="glass rounded-2xl px-2 py-3 sm:p-4 text-center min-w-0">
                           <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-2">Total</p>
-                          <p className="text-sm sm:text-base font-light text-white tracking-tight truncate">
+                          <p className="text-lg sm:text-2xl font-semibold text-white tracking-tight truncate leading-none">
                             {formatCurrency(totalMonth).split(',')[0]}
-                            <span className="opacity-30 text-xs">,{formatCurrency(totalMonth).split(',')[1]}</span>
+                            <span className="opacity-40 text-[11px] sm:text-sm font-medium">,{formatCurrency(totalMonth).split(',')[1]}</span>
                           </p>
                         </div>
-                        <div className="glass rounded-2xl p-3 sm:p-4 text-center border border-emerald-500/10">
+                        <div className="glass rounded-2xl px-2 py-3 sm:p-4 text-center border border-emerald-500/10 min-w-0">
                           <p className="text-[8px] font-black uppercase tracking-widest text-emerald-400/70 mb-2">Pago</p>
-                          <p className="text-sm sm:text-base font-light text-emerald-400 tracking-tight truncate">
+                          <p className="text-lg sm:text-2xl font-semibold text-emerald-400 tracking-tight truncate leading-none">
                             {formatCurrency(totalPaid).split(',')[0]}
-                            <span className="opacity-40 text-xs">,{formatCurrency(totalPaid).split(',')[1]}</span>
+                            <span className="opacity-50 text-[11px] sm:text-sm font-medium">,{formatCurrency(totalPaid).split(',')[1]}</span>
                           </p>
                         </div>
-                        <div className="glass rounded-2xl p-3 sm:p-4 text-center border border-amber-500/10">
+                        <div className="glass rounded-2xl px-2 py-3 sm:p-4 text-center border border-amber-500/10 min-w-0">
                           <p className="text-[8px] font-black uppercase tracking-widest text-amber-400/70 mb-2">Falta</p>
-                          <p className="text-sm sm:text-base font-light text-amber-400 tracking-tight truncate">
+                          <p className="text-lg sm:text-2xl font-semibold text-amber-400 tracking-tight truncate leading-none">
                             {formatCurrency(totalRemaining).split(',')[0]}
-                            <span className="opacity-40 text-xs">,{formatCurrency(totalRemaining).split(',')[1]}</span>
+                            <span className="opacity-50 text-[11px] sm:text-sm font-medium">,{formatCurrency(totalRemaining).split(',')[1]}</span>
                           </p>
                         </div>
                       </div>
@@ -3813,11 +3813,17 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                                   onClick={() => { setBillToEdit(b); setBillModalOpen(true); }}
                                   className="flex-1 min-w-0 text-left"
                                 >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <p className={cn(
-                                      "text-sm font-bold text-white truncate",
-                                      paid && "line-through"
-                                    )}>{b.name}</p>
+                                  <p className={cn(
+                                    "text-sm font-bold text-white break-words leading-tight",
+                                    paid && "line-through"
+                                  )}>{b.name}</p>
+                                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                    <span
+                                      className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                                      style={{ backgroundColor: `${catColor}20`, color: catColor }}
+                                    >
+                                      {b.category}
+                                    </span>
                                     {b.isRecurring && (
                                       <Repeat className="w-3 h-3 text-blue-400 shrink-0" />
                                     )}
@@ -3831,14 +3837,6 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                                         {Math.min(b.paidCount ?? 0, b.installments)}/{b.installments}
                                       </span>
                                     )}
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span
-                                      className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
-                                      style={{ backgroundColor: `${catColor}20`, color: catColor }}
-                                    >
-                                      {b.category}
-                                    </span>
                                     <span className="text-[10px] font-bold text-white/40">
                                       Vence dia {b.dueDay}
                                     </span>
