@@ -16,6 +16,7 @@ export interface Expense {
   value: number;
   note?: string;
   attachmentUrls: string[];
+  billId?: string | null; // vinculado a uma Bill se foi criado ao marcar conta como paga
   createdAt: string;
   expenseDate: string; // data real do gasto (YYYY-MM-DD)
   pending?: boolean; // aguardando sincronização offline (apenas client-side)

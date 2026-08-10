@@ -3199,8 +3199,11 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
 
   const confirmDeleteBill = useCallback(async () => {
     if (!billToDelete) return;
-    await db.deleteBill(billToDelete.id);
-    setBills(prev => prev.filter(b => b.id !== billToDelete.id));
+    const deletedId = billToDelete.id;
+    // ON DELETE CASCADE em expenses.bill_id cuida do banco; aqui só limpamos o state
+    await db.deleteBill(deletedId);
+    setBills(prev => prev.filter(b => b.id !== deletedId));
+    setExpenses(prev => prev.filter(e => e.billId !== deletedId));
     setBillToDelete(null);
     setBillToEdit(null);
   }, [billToDelete]);
@@ -3907,7 +3910,9 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                             {upcoming.map(b => {
                               const catObj = categories.find(c => c.name === b.category);
                               const catColor = catObj?.color ?? '#94a3b8';
-                              const nextParcel = (b.paidCount ?? 0) + (b.lastPaidYearMonth === currentYm ? 2 : 1);
+                              // Se já pagou este mês: paidCount já conta esta, próxima = paidCount + 1
+                              // Se ainda não pagou este mês: assume que vai pagar, próxima = paidCount + 2
+                              const nextParcel = (b.paidCount ?? 0) + (b.lastPaidYearMonth === currentYm ? 1 : 2);
                               return (
                                 <div key={b.id} className="glass rounded-2xl p-3 flex items-center gap-3">
                                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catColor }} />
@@ -4825,7 +4830,7 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
         onClose={() => setBillToDelete(null)}
         onConfirm={confirmDeleteBill}
         title="Excluir Conta?"
-        message={`A conta "${billToDelete?.name}" será removida. Os lançamentos já pagos serão mantidos.`}
+        message={`A conta "${billToDelete?.name}" será removida junto com todos os lançamentos gerados por ela (aparecerá zerado em Home e Lista).`}
       />
       <ProfileModal
         isOpen={isProfileOpen}

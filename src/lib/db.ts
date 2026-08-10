@@ -19,6 +19,7 @@ function rowToExpense(row: Record<string, unknown>): Expense {
     value: Number(row.value),
     note: row.note ? (row.note as string) : undefined,
     attachmentUrls: urls.filter(Boolean),
+    billId: (row.bill_id as string) ?? null,
     createdAt: row.created_at as string,
     expenseDate,
   };
@@ -45,6 +46,7 @@ export async function createExpense(
       value: data.value,
       note: data.note ?? null,
       attachment_urls: data.attachmentUrls ?? [],
+      bill_id: data.billId ?? null,
       expense_date: data.expenseDate ?? new Date().toISOString().slice(0, 10),
     })
     .select()
@@ -353,6 +355,7 @@ export async function payBill(
     value: bill.value,
     note: bill.isRecurring ? 'Conta recorrente' : 'Conta',
     attachmentUrls,
+    billId: bill.id,
     expenseDate: today.toISOString().slice(0, 10),
   });
   const newPaidCount = (bill.paidCount ?? 0) + 1;
