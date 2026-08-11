@@ -398,6 +398,7 @@ function rowToChecklistItem(row: Record<string, unknown>): ChecklistItem {
     id: row.id as string,
     checklistId: row.checklist_id as string,
     text: row.text as string,
+    description: (row.description as string) ?? null,
     done: Boolean(row.done),
     doneAt: (row.done_at as string) ?? null,
     position: Number(row.position ?? 0),
@@ -445,11 +446,12 @@ export async function getChecklistItems(checklistId?: string): Promise<Checklist
 export async function createChecklistItem(
   checklistId: string,
   text: string,
-  position: number
+  position: number,
+  description?: string | null
 ): Promise<ChecklistItem> {
   const { data, error } = await supabase
     .from('checklist_items')
-    .insert({ checklist_id: checklistId, text, position })
+    .insert({ checklist_id: checklistId, text, position, description: description ?? null })
     .select()
     .single();
   if (error) throw error;
@@ -458,10 +460,11 @@ export async function createChecklistItem(
 
 export async function updateChecklistItem(
   id: string,
-  updates: Partial<Pick<ChecklistItem, 'text' | 'done' | 'position'>> & { doneAt?: string | null }
+  updates: Partial<Pick<ChecklistItem, 'text' | 'description' | 'done' | 'position'>> & { doneAt?: string | null }
 ): Promise<void> {
   const payload: Record<string, unknown> = {};
   if (updates.text !== undefined) payload.text = updates.text;
+  if (updates.description !== undefined) payload.description = updates.description;
   if (updates.done !== undefined) payload.done = updates.done;
   if (updates.position !== undefined) payload.position = updates.position;
   if (updates.doneAt !== undefined) payload.done_at = updates.doneAt;

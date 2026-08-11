@@ -898,16 +898,119 @@ const ChecklistFormModal = ({
   );
 };
 
+// --- Checklist Item Form Modal (adicionar/editar com descrição) ---
+
+const ChecklistItemFormModal = ({
+  isOpen,
+  onClose,
+  item,
+  onSave,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  item: ChecklistItem | null; // null = criar nova
+  onSave: (text: string, description: string | null) => Promise<void>;
+}) => {
+  const [text, setText] = useState('');
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useLockBodyScroll(isOpen);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (item) {
+      setText(item.text);
+      setDescription(item.description ?? '');
+    } else {
+      setText('');
+      setDescription('');
+    }
+  }, [isOpen, item]);
+
+  if (!isOpen) return null;
+
+  const handleSave = async () => {
+    if (!text.trim() || saving) return;
+    setSaving(true);
+    try {
+      await onSave(text.trim(), description.trim() || null);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div onClick={onClose} className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-[220]" />
+      <div className="fixed inset-4 m-auto max-w-sm h-fit surface-modal backdrop-blur-xl rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 z-[221] border border-white/10">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-black tracking-tight">{item ? 'Editar Tarefa' : 'Nova Tarefa'}</h2>
+          <button onClick={onClose} className="p-3 glass rounded-2xl hover:bg-white/5 transition-colors">
+            <X className="w-5 h-5 text-white/40" />
+          </button>
+        </div>
+
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Tarefa</label>
+            <input
+              autoFocus
+              value={text}
+              onChange={e => setText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); } }}
+              placeholder="O que precisa ser feito?"
+              autoCorrect="on"
+              autoCapitalize="sentences"
+              spellCheck
+              lang="pt-BR"
+              maxLength={120}
+              className="w-full h-14 glass rounded-2xl px-5 outline-none focus:border-blue-500/50 text-base font-bold placeholder:text-white/10"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Descrição <span className="text-white/20 normal-case tracking-normal">(opcional)</span></label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Detalhes, links, referências..."
+              autoCorrect="on"
+              autoCapitalize="sentences"
+              spellCheck
+              lang="pt-BR"
+              rows={4}
+              maxLength={500}
+              className="w-full glass rounded-2xl px-5 py-3 outline-none focus:border-blue-500/50 text-sm placeholder:text-white/10 resize-none"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={saving || !text.trim()}
+          className="mt-8 w-full h-14 btn-gradient rounded-2xl font-bold text-sm shadow-xl active:scale-95 transition-all text-white disabled:opacity-40"
+        >
+          {saving ? 'Salvando...' : item ? 'Salvar' : 'Adicionar'}
+        </button>
+      </div>
+    </>
+  );
+};
+
 // --- Sortable item (dnd-kit wrapper pra um item de checklist) ---
 
 const SortableChecklistItem = ({
   item,
   onToggle,
   onDelete,
+  onEdit,
 }: {
   item: ChecklistItem;
   onToggle: () => void;
   onDelete: () => void;
+  onEdit: () => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style: React.CSSProperties = {
@@ -922,7 +1025,7 @@ const SortableChecklistItem = ({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "glass rounded-2xl p-3 flex items-center gap-2 transition-colors",
+        "glass rounded-2xl p-3 flex items-start gap-2 transition-colors",
         item.done && "opacity-50"
       )}
     >
@@ -930,7 +1033,7 @@ const SortableChecklistItem = ({
         <button
           {...attributes}
           {...listeners}
-          className="shrink-0 p-1 text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing touch-none"
+          className="shrink-0 p-1 text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing touch-none mt-0.5"
           aria-label="Arrastar"
         >
           <GripVertical className="w-4 h-4" />
@@ -941,19 +1044,30 @@ const SortableChecklistItem = ({
         type="button"
         onClick={onToggle}
         className={cn(
-          "w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 transition-all active:scale-90",
+          "w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 transition-all active:scale-90 mt-0.5",
           item.done ? "bg-emerald-500 border-emerald-500" : "border-white/25 hover:border-white/50"
         )}
       >
         {item.done && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
       </button>
-      <p className={cn("flex-1 text-sm text-white min-w-0 break-words", item.done && "line-through text-white/40")}>
-        {item.text}
-      </p>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="flex-1 min-w-0 text-left"
+      >
+        <p className={cn("text-sm text-white break-words", item.done && "line-through text-white/40")}>
+          {item.text}
+        </p>
+        {item.description && (
+          <p className={cn("text-[11px] mt-1 whitespace-pre-wrap break-words leading-snug", item.done ? "text-white/25" : "text-white/40")}>
+            {item.description}
+          </p>
+        )}
+      </button>
       <button
         type="button"
         onClick={onDelete}
-        className="shrink-0 p-2 text-white/20 hover:text-red-400 transition-colors"
+        className="shrink-0 p-2 text-white/20 hover:text-red-400 transition-colors mt-0.5"
         aria-label="Excluir"
       >
         <Trash2 className="w-3.5 h-3.5" />
@@ -971,19 +1085,23 @@ const ChecklistDetailModal = ({
   onAddItem,
   onToggleItem,
   onDeleteItem,
+  onEditItem,
   onReorderItems,
   onEditChecklist,
   onDeleteChecklist,
+  onRequestNewItem,
 }: {
   checklist: Checklist | null;
   items: ChecklistItem[];
   onClose: () => void;
   onAddItem: (text: string) => Promise<void>;
   onToggleItem: (id: string) => Promise<void>;
-  onDeleteItem: (id: string) => Promise<void>;
+  onDeleteItem: (item: ChecklistItem) => void; // apenas dispara confirmação
+  onEditItem: (item: ChecklistItem) => void;
   onReorderItems: (newOrder: ChecklistItem[]) => Promise<void>;
   onEditChecklist: () => void;
   onDeleteChecklist: () => void;
+  onRequestNewItem: () => void; // abre form modal com descrição
 }) => {
   const [newItemText, setNewItemText] = useState('');
   const [adding, setAdding] = useState(false);
@@ -1099,7 +1217,8 @@ const ChecklistDetailModal = ({
                           key={item.id}
                           item={item}
                           onToggle={() => onToggleItem(item.id)}
-                          onDelete={() => onDeleteItem(item.id)}
+                          onDelete={() => onDeleteItem(item)}
+                          onEdit={() => onEditItem(item)}
                         />
                       ))}
                     </div>
@@ -1133,24 +1252,35 @@ const ChecklistDetailModal = ({
         </div>
 
         {/* Add input */}
-        <div className="p-4 sm:p-6 border-t border-white/5 flex gap-2">
-          <input
-            value={newItemText}
-            onChange={e => setNewItemText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAdd()}
-            placeholder="Nova tarefa..."
-            autoCorrect="on"
-            autoCapitalize="sentences"
-            spellCheck
-            lang="pt-BR"
-            className="flex-1 h-12 glass rounded-2xl px-4 outline-none focus:border-blue-500/50 text-sm font-bold placeholder:text-white/20"
-          />
+        <div className="p-4 sm:p-6 border-t border-white/5 space-y-2">
+          <div className="flex gap-2">
+            <input
+              value={newItemText}
+              onChange={e => setNewItemText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+              placeholder="Nova tarefa (Enter pra adicionar)"
+              autoCorrect="on"
+              autoCapitalize="sentences"
+              spellCheck
+              lang="pt-BR"
+              className="flex-1 h-12 glass rounded-2xl px-4 outline-none focus:border-blue-500/50 text-sm font-bold placeholder:text-white/20"
+            />
+            <button
+              onClick={handleAdd}
+              disabled={!newItemText.trim() || adding}
+              className="w-12 h-12 btn-gradient rounded-2xl flex items-center justify-center active:scale-95 transition-all shadow-lg disabled:opacity-40 disabled:active:scale-100"
+              aria-label="Adicionar tarefa"
+            >
+              <Plus className="w-5 h-5 text-white stroke-[3]" />
+            </button>
+          </div>
           <button
-            onClick={handleAdd}
-            disabled={!newItemText.trim() || adding}
-            className="w-12 h-12 btn-gradient rounded-2xl flex items-center justify-center active:scale-95 transition-all shadow-lg disabled:opacity-40 disabled:active:scale-100"
+            type="button"
+            onClick={onRequestNewItem}
+            className="w-full h-9 glass rounded-xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors flex items-center justify-center gap-1.5"
           >
-            <Plus className="w-5 h-5 text-white stroke-[3]" />
+            <FileText className="w-3 h-3" />
+            Adicionar com descrição
           </button>
         </div>
       </div>
@@ -3492,6 +3622,9 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
   const [checklistFormOpen, setChecklistFormOpen] = useState(false);
   const [checklistToEdit, setChecklistToEdit] = useState<Checklist | null>(null);
   const [checklistToDelete, setChecklistToDelete] = useState<Checklist | null>(null);
+  const [itemFormOpen, setItemFormOpen] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState<ChecklistItem | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<ChecklistItem | null>(null);
   const [dataLoading, setDataLoading] = useState(!bootSnap);
   const [dataError, setDataError] = useState<string | null>(null);
 
@@ -3858,11 +3991,16 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     setOpenChecklistId(null);
   }, [checklistToDelete]);
 
-  const handleAddChecklistItem = useCallback(async (checklistId: string, text: string) => {
+  const handleAddChecklistItem = useCallback(async (checklistId: string, text: string, description: string | null = null) => {
     const pendingCount = checklistItems.filter(i => i.checklistId === checklistId && !i.done).length;
-    const created = await db.createChecklistItem(checklistId, text, pendingCount);
+    const created = await db.createChecklistItem(checklistId, text, pendingCount, description);
     setChecklistItems(prev => [...prev, created]);
   }, [checklistItems]);
+
+  const handleUpdateChecklistItem = useCallback(async (itemId: string, text: string, description: string | null) => {
+    await db.updateChecklistItem(itemId, { text, description });
+    setChecklistItems(prev => prev.map(i => i.id === itemId ? { ...i, text, description } : i));
+  }, []);
 
   const handleToggleChecklistItem = useCallback(async (itemId: string) => {
     const item = checklistItems.find(i => i.id === itemId);
@@ -3873,10 +4011,13 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
     setChecklistItems(prev => prev.map(i => i.id === itemId ? { ...i, done: nowDone, doneAt } : i));
   }, [checklistItems]);
 
-  const handleDeleteChecklistItem = useCallback(async (itemId: string) => {
-    await db.deleteChecklistItem(itemId);
-    setChecklistItems(prev => prev.filter(i => i.id !== itemId));
-  }, []);
+  const confirmDeleteChecklistItem = useCallback(async () => {
+    if (!itemToDelete) return;
+    const id = itemToDelete.id;
+    await db.deleteChecklistItem(id);
+    setChecklistItems(prev => prev.filter(i => i.id !== id));
+    setItemToDelete(null);
+  }, [itemToDelete]);
 
   const handleReorderChecklistItems = useCallback(async (newOrder: ChecklistItem[]) => {
     // Optimistic update
@@ -5534,7 +5675,8 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
         onClose={() => setOpenChecklistId(null)}
         onAddItem={(text) => handleAddChecklistItem(openChecklistId!, text)}
         onToggleItem={handleToggleChecklistItem}
-        onDeleteItem={handleDeleteChecklistItem}
+        onDeleteItem={(item) => setItemToDelete(item)}
+        onEditItem={(item) => { setItemToEdit(item); setItemFormOpen(true); }}
         onReorderItems={handleReorderChecklistItems}
         onEditChecklist={() => {
           const cl = checklists.find(c => c.id === openChecklistId);
@@ -5544,6 +5686,26 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
           const cl = checklists.find(c => c.id === openChecklistId);
           if (cl) setChecklistToDelete(cl);
         }}
+        onRequestNewItem={() => { setItemToEdit(null); setItemFormOpen(true); }}
+      />
+      <ChecklistItemFormModal
+        isOpen={itemFormOpen}
+        onClose={() => { setItemFormOpen(false); setItemToEdit(null); }}
+        item={itemToEdit}
+        onSave={async (text, description) => {
+          if (itemToEdit) {
+            await handleUpdateChecklistItem(itemToEdit.id, text, description);
+          } else if (openChecklistId) {
+            await handleAddChecklistItem(openChecklistId, text, description);
+          }
+        }}
+      />
+      <ConfirmationModal
+        isOpen={!!itemToDelete}
+        onClose={() => setItemToDelete(null)}
+        onConfirm={confirmDeleteChecklistItem}
+        title="Excluir Tarefa?"
+        message={`A tarefa "${itemToDelete?.text}" será removida da lista.${itemToDelete?.description ? ' A descrição também será apagada.' : ''}`}
       />
       <ChecklistFormModal
         isOpen={checklistFormOpen}

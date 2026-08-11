@@ -41,6 +41,7 @@ export interface ChecklistItem {
   id: string;
   checklistId: string;
   text: string;
+  description: string | null;
   done: boolean;
   doneAt: string | null;
   position: number;
