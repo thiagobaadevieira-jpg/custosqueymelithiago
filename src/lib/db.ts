@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { User, Expense, Bill } from '../types';
+import type { User, Expense, Bill, Checklist, ChecklistItem } from '../types';
 import { toLocalDateString } from './utils';
 
 export type Category = { id?: string; name: string; color: string; initials: string };
@@ -379,6 +379,108 @@ export async function unpayBill(bill: Bill): Promise<void> {
     lastPaidExpenseId: null,
     paidCount: newPaidCount,
   });
+}
+
+// ─── Checklists (pastas de tarefas compartilhadas) ───────────────────────────
+
+function rowToChecklist(row: Record<string, unknown>): Checklist {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    color: (row.color as string) ?? '#60a5fa',
+    createdBy: (row.created_by as string) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
+function rowToChecklistItem(row: Record<string, unknown>): ChecklistItem {
+  return {
+    id: row.id as string,
+    checklistId: row.checklist_id as string,
+    text: row.text as string,
+    done: Boolean(row.done),
+    doneAt: (row.done_at as string) ?? null,
+    position: Number(row.position ?? 0),
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function getChecklists(): Promise<Checklist[]> {
+  const { data, error } = await supabase
+    .from('checklists')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(rowToChecklist);
+}
+
+export async function createChecklist(name: string, color: string, userId: string): Promise<Checklist> {
+  const { data, error } = await supabase
+    .from('checklists')
+    .insert({ name, color, created_by: userId })
+    .select()
+    .single();
+  if (error) throw error;
+  return rowToChecklist(data);
+}
+
+export async function updateChecklist(id: string, updates: Partial<Pick<Checklist, 'name' | 'color'>>): Promise<void> {
+  const { error } = await supabase.from('checklists').update(updates).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteChecklist(id: string): Promise<void> {
+  const { error } = await supabase.from('checklists').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function getChecklistItems(checklistId?: string): Promise<ChecklistItem[]> {
+  let q = supabase.from('checklist_items').select('*');
+  if (checklistId) q = q.eq('checklist_id', checklistId);
+  const { data, error } = await q.order('position', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(rowToChecklistItem);
+}
+
+export async function createChecklistItem(
+  checklistId: string,
+  text: string,
+  position: number
+): Promise<ChecklistItem> {
+  const { data, error } = await supabase
+    .from('checklist_items')
+    .insert({ checklist_id: checklistId, text, position })
+    .select()
+    .single();
+  if (error) throw error;
+  return rowToChecklistItem(data);
+}
+
+export async function updateChecklistItem(
+  id: string,
+  updates: Partial<Pick<ChecklistItem, 'text' | 'done' | 'position'>> & { doneAt?: string | null }
+): Promise<void> {
+  const payload: Record<string, unknown> = {};
+  if (updates.text !== undefined) payload.text = updates.text;
+  if (updates.done !== undefined) payload.done = updates.done;
+  if (updates.position !== undefined) payload.position = updates.position;
+  if (updates.doneAt !== undefined) payload.done_at = updates.doneAt;
+  const { error } = await supabase.from('checklist_items').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteChecklistItem(id: string): Promise<void> {
+  const { error } = await supabase.from('checklist_items').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// Reordena vários itens de uma vez (drag-and-drop). Usa upsert pra bater
+// todas as posições numa única round-trip.
+export async function reorderChecklistItems(items: Array<{ id: string; position: number }>): Promise<void> {
+  const updates = items.map(({ id, position }) =>
+    supabase.from('checklist_items').update({ position }).eq('id', id)
+  );
+  await Promise.all(updates);
 }
 
 // ─── Storage ─────────────────────────────────────────────────────────────────

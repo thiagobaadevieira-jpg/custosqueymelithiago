@@ -29,6 +29,24 @@ export interface UserStats {
   color: string;
 }
 
+export interface Checklist {
+  id: string;
+  name: string;
+  color: string;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface ChecklistItem {
+  id: string;
+  checklistId: string;
+  text: string;
+  done: boolean;
+  doneAt: string | null;
+  position: number;
+  createdAt: string;
+}
+
 export interface Bill {
   id: string;
   name: string;
