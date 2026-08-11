@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "@/src/lib/motion-stub";
-import { Bell, Plus, LayoutDashboard, List, LogOut, Search, Filter, Camera, X, ChevronDown, ChevronLeft, ChevronRight, Settings, Trash2, Menu, Edit2, AlertCircle, Download, Paperclip, User as UserIcon, Check, Sun, Moon, Calendar, Wallet, Repeat, FileText, ListTodo, GripVertical } from "lucide-react";
+import { Bell, Plus, LayoutDashboard, List, LogOut, Search, Filter, Camera, X, ChevronDown, ChevronLeft, ChevronRight, Settings, Trash2, Menu, Edit2, AlertCircle, Download, Paperclip, User as UserIcon, Check, Sun, Moon, Calendar, Wallet, Repeat, FileText, ListTodo, GripVertical, Trophy } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -738,37 +738,83 @@ const ChecklistsListModal = ({
             <p className="text-sm font-bold text-white/30">Nenhuma lista ainda</p>
             <p className="text-[11px] text-white/20 mt-1">Crie sua primeira lista de tarefas abaixo</p>
           </div>
-        ) : (
-          <div className="space-y-2 mb-5">
-            {checklists.map(cl => {
-              const s = stats.get(cl.id) ?? { total: 0, done: 0 };
-              const pct = s.total > 0 ? (s.done / s.total) * 100 : 0;
-              return (
-                <button
-                  key={cl.id}
-                  onClick={() => onOpenChecklist(cl.id)}
-                  className="w-full text-left glass rounded-2xl p-4 hover:bg-white/5 active:scale-[0.99] transition-all"
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cl.color }} />
-                      <p className="text-sm font-bold text-white truncate">{cl.name}</p>
+        ) : (() => {
+          const isComplete = (cl: Checklist) => {
+            const s = stats.get(cl.id) ?? { total: 0, done: 0 };
+            return s.total > 0 && s.done === s.total;
+          };
+          const active = checklists.filter(cl => !isComplete(cl));
+          const finished = checklists.filter(cl => isComplete(cl));
+          return (
+            <div className="space-y-2 mb-5">
+              {active.map(cl => {
+                const s = stats.get(cl.id) ?? { total: 0, done: 0 };
+                const pct = s.total > 0 ? (s.done / s.total) * 100 : 0;
+                return (
+                  <button
+                    key={cl.id}
+                    onClick={() => onOpenChecklist(cl.id)}
+                    className="w-full text-left glass rounded-2xl p-4 hover:bg-white/5 active:scale-[0.99] transition-all"
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cl.color }} />
+                        <p className="text-sm font-bold text-white truncate">{cl.name}</p>
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40 shrink-0 ml-2">
+                        {s.done}/{s.total}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40 shrink-0 ml-2">
-                      {s.done}/{s.total}
-                    </span>
-                  </div>
-                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, backgroundColor: cl.color }}
-                    />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
+                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: cl.color }}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+
+              {finished.length > 0 && (
+                <>
+                  {active.length > 0 && (
+                    <div className="pt-3 pb-1 px-1">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-emerald-400/60 flex items-center gap-1.5">
+                        <Trophy className="w-3 h-3" />
+                        Concluídas ({finished.length})
+                      </p>
+                    </div>
+                  )}
+                  {finished.map(cl => {
+                    const s = stats.get(cl.id) ?? { total: 0, done: 0 };
+                    return (
+                      <button
+                        key={cl.id}
+                        onClick={() => onOpenChecklist(cl.id)}
+                        className="w-full text-left glass rounded-2xl p-4 border border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/10 active:scale-[0.99] transition-all"
+                      >
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
+                              <Trophy className="w-3.5 h-3.5 text-emerald-400" />
+                            </div>
+                            <p className="text-sm font-bold text-white/80 line-through truncate">{cl.name}</p>
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 shrink-0 ml-2">
+                            {s.done}/{s.total}
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-bold text-emerald-400/90 flex items-center gap-1.5">
+                          🎉 Parabéns, você concluiu — <span className="text-emerald-300 font-black">foca na próxima!</span>
+                        </p>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         <button
           onClick={() => onOpenForm(null)}
