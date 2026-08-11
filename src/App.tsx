@@ -1089,21 +1089,20 @@ const ChecklistDetailModal = ({
   onReorderItems,
   onEditChecklist,
   onDeleteChecklist,
-  onRequestNewItem,
 }: {
   checklist: Checklist | null;
   items: ChecklistItem[];
   onClose: () => void;
-  onAddItem: (text: string) => Promise<void>;
+  onAddItem: (text: string, description: string | null) => Promise<void>;
   onToggleItem: (id: string) => Promise<void>;
   onDeleteItem: (item: ChecklistItem) => void; // apenas dispara confirmação
   onEditItem: (item: ChecklistItem) => void;
   onReorderItems: (newOrder: ChecklistItem[]) => Promise<void>;
   onEditChecklist: () => void;
   onDeleteChecklist: () => void;
-  onRequestNewItem: () => void; // abre form modal com descrição
 }) => {
   const [newItemText, setNewItemText] = useState('');
+  const [newItemDesc, setNewItemDesc] = useState('');
   const [adding, setAdding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -1140,8 +1139,9 @@ const ChecklistDetailModal = ({
     if (!newItemText.trim() || adding) return;
     setAdding(true);
     try {
-      await onAddItem(newItemText.trim());
+      await onAddItem(newItemText.trim(), newItemDesc.trim() || null);
       setNewItemText('');
+      setNewItemDesc('');
     } finally {
       setAdding(false);
     }
@@ -1251,37 +1251,41 @@ const ChecklistDetailModal = ({
           )}
         </div>
 
-        {/* Add input */}
+        {/* Add form — texto + descrição sempre visíveis */}
         <div className="p-4 sm:p-6 border-t border-white/5 space-y-2">
-          <div className="flex gap-2">
-            <input
-              value={newItemText}
-              onChange={e => setNewItemText(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAdd()}
-              placeholder="Nova tarefa (Enter pra adicionar)"
+          <input
+            value={newItemText}
+            onChange={e => setNewItemText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+            placeholder="Nova tarefa (Enter pra adicionar)"
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            spellCheck
+            lang="pt-BR"
+            className="w-full h-12 glass rounded-2xl px-4 outline-none focus:border-blue-500/50 text-sm font-bold placeholder:text-white/20"
+          />
+          <div className="flex gap-2 items-stretch">
+            <textarea
+              value={newItemDesc}
+              onChange={e => setNewItemDesc(e.target.value)}
+              placeholder="Descrição (opcional)"
               autoCorrect="on"
               autoCapitalize="sentences"
               spellCheck
               lang="pt-BR"
-              className="flex-1 h-12 glass rounded-2xl px-4 outline-none focus:border-blue-500/50 text-sm font-bold placeholder:text-white/20"
+              rows={2}
+              maxLength={500}
+              className="flex-1 glass rounded-2xl px-4 py-2.5 outline-none focus:border-blue-500/50 text-xs placeholder:text-white/20 resize-none"
             />
             <button
               onClick={handleAdd}
               disabled={!newItemText.trim() || adding}
-              className="w-12 h-12 btn-gradient rounded-2xl flex items-center justify-center active:scale-95 transition-all shadow-lg disabled:opacity-40 disabled:active:scale-100"
+              className="w-12 shrink-0 btn-gradient rounded-2xl flex items-center justify-center active:scale-95 transition-all shadow-lg disabled:opacity-40 disabled:active:scale-100"
               aria-label="Adicionar tarefa"
             >
               <Plus className="w-5 h-5 text-white stroke-[3]" />
             </button>
           </div>
-          <button
-            type="button"
-            onClick={onRequestNewItem}
-            className="w-full h-9 glass rounded-xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors flex items-center justify-center gap-1.5"
-          >
-            <FileText className="w-3 h-3" />
-            Adicionar com descrição
-          </button>
         </div>
       </div>
     </>
@@ -5673,7 +5677,7 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
         checklist={checklists.find(c => c.id === openChecklistId) ?? null}
         items={checklistItems.filter(i => i.checklistId === openChecklistId)}
         onClose={() => setOpenChecklistId(null)}
-        onAddItem={(text) => handleAddChecklistItem(openChecklistId!, text)}
+        onAddItem={(text, description) => handleAddChecklistItem(openChecklistId!, text, description)}
         onToggleItem={handleToggleChecklistItem}
         onDeleteItem={(item) => setItemToDelete(item)}
         onEditItem={(item) => { setItemToEdit(item); setItemFormOpen(true); }}
@@ -5686,7 +5690,6 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
           const cl = checklists.find(c => c.id === openChecklistId);
           if (cl) setChecklistToDelete(cl);
         }}
-        onRequestNewItem={() => { setItemToEdit(null); setItemFormOpen(true); }}
       />
       <ChecklistItemFormModal
         isOpen={itemFormOpen}
