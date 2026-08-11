@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { User, Expense, Bill } from '../types';
+import { toLocalDateString } from './utils';
 
 export type Category = { id?: string; name: string; color: string; initials: string };
 
@@ -9,7 +10,7 @@ function rowToExpense(row: Record<string, unknown>): Expense {
   // expense_date vem como "YYYY-MM-DD", fallback para data do created_at
   const expenseDate = (row.expense_date as string)
     || (row.created_at as string)?.slice(0, 10)
-    || new Date().toISOString().slice(0, 10);
+    || toLocalDateString();
   const urls = Array.isArray(row.attachment_urls) ? (row.attachment_urls as string[]) : [];
   return {
     id: row.id as string,
@@ -47,7 +48,7 @@ export async function createExpense(
       note: data.note ?? null,
       attachment_urls: data.attachmentUrls ?? [],
       bill_id: data.billId ?? null,
-      expense_date: data.expenseDate ?? new Date().toISOString().slice(0, 10),
+      expense_date: data.expenseDate ?? toLocalDateString(),
     })
     .select()
     .single();
@@ -356,7 +357,7 @@ export async function payBill(
     note: bill.isRecurring ? 'Conta recorrente' : 'Conta',
     attachmentUrls,
     billId: bill.id,
-    expenseDate: today.toISOString().slice(0, 10),
+    expenseDate: toLocalDateString(today),
   });
   const newPaidCount = (bill.paidCount ?? 0) + 1;
   await updateBill(bill.id, {

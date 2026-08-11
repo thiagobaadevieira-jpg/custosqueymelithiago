@@ -33,7 +33,7 @@ async function downloadAttachment(url: string, suggestedName?: string): Promise<
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 }
-import { cn, formatCurrency } from "@/src/lib/utils";
+import { cn, formatCurrency, toLocalDateString } from "@/src/lib/utils";
 import { User, Expense, Bill } from "@/src/types";
 import { supabase } from "@/src/lib/supabase";
 import * as db from "@/src/lib/db";
@@ -2277,7 +2277,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
   onSave: (expense: Omit<Expense, 'id' | 'userId' | 'createdAt'> & { id?: string, photoBlobs?: File[] }) => void,
   categories: Category[]
 }) => {
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = toLocalDateString();
   const [name, setName] = useState(expense?.name || "");
   const [value, setValue] = useState(expense?.value.toString() || "");
   const [note, setNote] = useState(expense?.note || "");
@@ -3438,11 +3438,18 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
       });
     }
 
-    // 3. Sort by values
+    // 3. Sort
     if (sortOrder === 'asc') {
       result.sort((a, b) => a.value - b.value);
     } else if (sortOrder === 'desc') {
       result.sort((a, b) => b.value - a.value);
+    } else {
+      // Ordem padrão: data do gasto mais recente primeiro; empate → createdAt
+      result.sort((a, b) => {
+        const dateDiff = (b.expenseDate ?? '').localeCompare(a.expenseDate ?? '');
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
     }
 
     return result;
