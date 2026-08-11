@@ -1,6 +1,38 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "@/src/lib/motion-stub";
-import { Bell, Plus, LayoutDashboard, List, LogOut, Search, Filter, Camera, X, ChevronDown, ChevronLeft, ChevronRight, Settings, Trash2, Menu, Edit2, AlertCircle, Download, Paperclip, User as UserIcon, Check, Sun, Moon, Calendar, Wallet, Repeat } from "lucide-react";
+import { Bell, Plus, LayoutDashboard, List, LogOut, Search, Filter, Camera, X, ChevronDown, ChevronLeft, ChevronRight, Settings, Trash2, Menu, Edit2, AlertCircle, Download, Paperclip, User as UserIcon, Check, Sun, Moon, Calendar, Wallet, Repeat, FileText } from "lucide-react";
+
+// Detecta anexos em PDF pelo tipo do File ou pela URL (assinada no storage
+// mantém a extensão original antes do query string).
+const isPdfAttachment = (source: File | string): boolean => {
+  if (typeof source === 'string') {
+    const clean = source.split('?')[0].toLowerCase();
+    return clean.endsWith('.pdf');
+  }
+  return source.type === 'application/pdf' || source.name.toLowerCase().endsWith('.pdf');
+};
+
+// Baixa um anexo forçando o browser a salvar (sem abrir inline no viewer)
+async function downloadAttachment(url: string, suggestedName?: string): Promise<void> {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    // Nome do arquivo — pega o último segmento da URL antes do query string
+    const fallbackName = url.split('?')[0].split('/').pop() || 'comprovante';
+    link.download = suggestedName || fallbackName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+  } catch (err) {
+    console.error('Falha ao baixar anexo:', err);
+    // Fallback: abre em nova aba pra usuário salvar manualmente
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
 import { cn, formatCurrency } from "@/src/lib/utils";
 import { User, Expense, Bill } from "@/src/types";
 import { supabase } from "@/src/lib/supabase";
@@ -566,7 +598,7 @@ const PayBillModal = ({
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf"
               multiple
               hidden
               onChange={e => {
@@ -578,19 +610,30 @@ const PayBillModal = ({
 
             {previews.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mb-4">
-                {previews.map((url, idx) => (
-                  <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-white/10 bg-black/40">
-                    <img src={url} alt={`Comprovante ${idx + 1}`} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeFile(idx)}
-                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center active:scale-90 transition-all"
-                      aria-label="Remover"
-                    >
-                      <X className="w-3.5 h-3.5 stroke-[3]" />
-                    </button>
-                  </div>
-                ))}
+                {previews.map((url, idx) => {
+                  const file = pickedFiles[idx];
+                  const isPdf = file ? isPdfAttachment(file) : false;
+                  return (
+                    <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                      {isPdf ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-red-500/5 p-1">
+                          <FileText className="w-7 h-7 text-red-400/80" />
+                          <span className="text-[8px] font-black uppercase tracking-widest text-red-400/80">PDF</span>
+                        </div>
+                      ) : (
+                        <img src={url} alt={`Comprovante ${idx + 1}`} className="w-full h-full object-cover" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeFile(idx)}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center active:scale-90 transition-all"
+                        aria-label="Remover"
+                      >
+                        <X className="w-3.5 h-3.5 stroke-[3]" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -2521,27 +2564,50 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
 
                 {attachmentUrls.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
-                    {attachmentUrls.map((url, idx) => (
-                      <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border border-white/10 bg-black/40 group">
-                        <img
-                          src={url}
-                          alt={`Comprovante ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeAttachment(idx)}
-                          className="absolute top-1 right-1 w-7 h-7 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center active:scale-90 transition-all shadow-lg"
-                          aria-label="Remover"
-                        >
-                          <X className="w-4 h-4 stroke-[3]" />
-                        </button>
-                        <div className="absolute bottom-1 left-1 text-[9px] font-black text-white bg-black/60 px-1.5 py-0.5 rounded">
-                          {idx + 1}
+                    {attachmentUrls.map((url, idx) => {
+                      const isPdf = isPdfAttachment(url);
+                      const isBlob = url.startsWith('blob:');
+                      return (
+                        <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border border-white/10 bg-black/40 group">
+                          {isPdf ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-red-500/5 p-2">
+                              <FileText className="w-8 h-8 text-red-400/80" />
+                              <span className="text-[9px] font-black uppercase tracking-widest text-red-400/80">PDF</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={url}
+                              alt={`Comprovante ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          )}
+                          {/* Botão baixar — só quando já subiu (URL real, não blob local) */}
+                          {!isBlob && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); downloadAttachment(url); }}
+                              className="absolute top-1 left-1 w-7 h-7 rounded-full bg-blue-500/80 hover:bg-blue-500 text-white flex items-center justify-center active:scale-90 transition-all shadow-lg"
+                              aria-label="Baixar"
+                              title="Baixar comprovante"
+                            >
+                              <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeAttachment(idx)}
+                            className="absolute top-1 right-1 w-7 h-7 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center active:scale-90 transition-all shadow-lg"
+                            aria-label="Remover"
+                          >
+                            <X className="w-4 h-4 stroke-[3]" />
+                          </button>
+                          <div className="absolute bottom-1 left-1 text-[9px] font-black text-white bg-black/60 px-1.5 py-0.5 rounded">
+                            {idx + 1}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
@@ -2553,7 +2619,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                     className="h-16 glass rounded-2xl text-white/40 hover:text-white hover:border-white/20 transition-all border-dashed flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest cursor-pointer group disabled:opacity-50"
                   >
                     <Paperclip className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-blue-400 transition-all" />
-                    <span>{uploadingFile ? 'Enviando...' : attachmentUrls.length ? 'Adicionar Outro' : 'Anexar Arquivo'}</span>
+                    <span>{uploadingFile ? 'Enviando...' : attachmentUrls.length ? 'Adicionar Outro' : 'Anexar Foto ou PDF'}</span>
                   </button>
                   <button
                     type="button"
@@ -2570,7 +2636,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept="image/*"
+                  accept="image/*,application/pdf"
                   multiple
                   className="hidden"
                 />
@@ -2695,25 +2761,47 @@ const ExpenseDetailModal = ({ isOpen, onClose, expense, onEdit, onDelete, catego
                   {expense.attachmentUrls.length === 1 ? 'Comprovante' : `${expense.attachmentUrls.length} Comprovantes`}
                 </p>
                 <div className="grid grid-cols-3 gap-2">
-                  {expense.attachmentUrls.map((url, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setViewerIndex(idx)}
-                      className="relative aspect-square rounded-2xl border border-white/10 overflow-hidden bg-black/40 group hover:border-emerald-500/40 transition-all active:scale-95"
-                    >
-                      <img
-                        src={url}
-                        alt={`Comprovante ${idx + 1}`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        referrerPolicy="no-referrer"
-                      />
-                      {expense.attachmentUrls.length > 1 && (
-                        <div className="absolute bottom-1 left-1 text-[9px] font-black text-white bg-black/70 px-1.5 py-0.5 rounded">
-                          {idx + 1}
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                  {expense.attachmentUrls.map((url, idx) => {
+                    const isPdf = isPdfAttachment(url);
+                    return (
+                      <div key={idx} className="relative aspect-square rounded-2xl border border-white/10 overflow-hidden bg-black/40 group hover:border-emerald-500/40 transition-all">
+                        <button
+                          type="button"
+                          onClick={() => setViewerIndex(idx)}
+                          className="absolute inset-0 w-full h-full active:scale-95 transition-transform"
+                          aria-label="Ver comprovante"
+                        >
+                          {isPdf ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-red-500/5 p-2">
+                              <FileText className="w-8 h-8 text-red-400/80" />
+                              <span className="text-[9px] font-black uppercase tracking-widest text-red-400/80">PDF</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={url}
+                              alt={`Comprovante ${idx + 1}`}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              referrerPolicy="no-referrer"
+                            />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); downloadAttachment(url); }}
+                          className="absolute top-1 right-1 w-7 h-7 rounded-full bg-blue-500/80 hover:bg-blue-500 text-white flex items-center justify-center active:scale-90 transition-all shadow-lg z-10"
+                          aria-label="Baixar"
+                          title="Baixar comprovante"
+                        >
+                          <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                        </button>
+                        {expense.attachmentUrls.length > 1 && (
+                          <div className="absolute bottom-1 left-1 text-[9px] font-black text-white bg-black/70 px-1.5 py-0.5 rounded pointer-events-none">
+                            {idx + 1}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : (
@@ -2785,21 +2873,48 @@ const ExpenseDetailModal = ({ isOpen, onClose, expense, onEdit, onDelete, catego
                     </>
                   )}
 
-                  <motion.div
-                    key={viewerIndex}
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="max-w-xl max-h-[80vh] overflow-hidden rounded-3xl border border-white/10 shadow-2xl bg-slate-900 relative z-[310] flex items-center justify-center"
-                  >
-                    <img
-                      src={expense.attachmentUrls[idx]}
-                      alt={`Comprovante ${idx + 1}`}
-                      className="max-w-full max-h-[80vh] object-contain rounded-3xl"
-                      referrerPolicy="no-referrer"
-                    />
-                  </motion.div>
+                  {(() => {
+                    const currentUrl = expense.attachmentUrls[idx];
+                    const currentIsPdf = isPdfAttachment(currentUrl);
+                    return (
+                      <motion.div
+                        key={viewerIndex}
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.9, opacity: 0 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className={cn(
+                          "overflow-hidden rounded-3xl border border-white/10 shadow-2xl bg-slate-900 relative z-[310] flex flex-col items-center justify-center",
+                          currentIsPdf ? "w-[min(90vw,900px)] h-[85vh]" : "max-w-xl max-h-[80vh]"
+                        )}
+                      >
+                        {currentIsPdf ? (
+                          <>
+                            <iframe
+                              src={currentUrl}
+                              title={`Comprovante ${idx + 1}`}
+                              className="w-full h-full border-0 bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); downloadAttachment(currentUrl); }}
+                              className="absolute bottom-3 right-3 px-3 h-9 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 active:scale-95 transition-all"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              Baixar PDF
+                            </button>
+                          </>
+                        ) : (
+                          <img
+                            src={currentUrl}
+                            alt={`Comprovante ${idx + 1}`}
+                            className="max-w-full max-h-[80vh] object-contain rounded-3xl"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                      </motion.div>
+                    );
+                  })()}
                 </motion.div>
               );
             })()}
