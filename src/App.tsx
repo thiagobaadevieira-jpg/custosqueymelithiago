@@ -2936,7 +2936,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
   const [name, setName] = useState(expense?.name || "");
   const [value, setValue] = useState(expense?.value.toString() || "");
   const [note, setNote] = useState(expense?.note || "");
-  const [category, setCategory] = useState(expense?.category || categories[0]?.name || "");
+  const [category, setCategory] = useState(expense?.category || "");
   const [expenseDate, setExpenseDate] = useState(expense?.expenseDate || todayISO);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>(expense?.attachmentUrls ?? []);
@@ -2991,7 +2991,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
       setName("");
       setValue("");
       setNote("");
-      setCategory(categories[0]?.name || "");
+      setCategory("");
       setAttachmentUrls([]);
       setExpenseDate(todayISO);
       setFormError(null);
@@ -3046,14 +3046,14 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
     }
   };
 
-  const selectedCategory = categories.find(c => c.name === category) || categories[0] || { name: 'Outros', color: '#94a3b8' };
+  const selectedCategory = categories.find(c => c.name === category) || null;
 
   const handleSave = () => {
-    if (!name.trim() || !value) {
+    if (!name.trim() || !value || !category) {
       setFormError(
-        !name.trim() && !value ? 'Preencha a descrição e o valor.'
-        : !name.trim() ? 'Preencha a descrição do gasto.'
-        : 'Preencha o valor do gasto.'
+        !name.trim() ? 'Preencha a descrição do gasto.'
+        : !value ? 'Preencha o valor do gasto.'
+        : 'Selecione uma categoria antes de salvar.'
       );
       return;
     }
@@ -3085,20 +3085,21 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
       />
       <div
         ref={sheetRef}
-        className="fixed bottom-0 left-0 right-0 glass rounded-t-[48px] p-10 z-[101] max-h-[92vh] overflow-y-auto overscroll-contain border-t border-white/10"
+        className="fixed bottom-0 left-0 right-0 glass rounded-t-[32px] p-5 sm:p-6 z-[101] max-h-[92vh] overflow-y-auto overscroll-contain border-t border-white/10"
       >
-            <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-10" />
-            
-            <div className="flex justify-between items-center mb-10">
-              <h2 className="text-3xl font-black tracking-tight">{expense ? "Editar Gasto" : "Novo Gasto"}</h2>
-              <button onClick={onClose} className="p-3 glass rounded-2xl hover:bg-white/5 transition-colors">
-                <X className="w-5 h-5 text-white/40" />
+            <div className="w-10 h-1.5 bg-white/10 rounded-full mx-auto mb-4" />
+
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-black tracking-tight">{expense ? "Editar Gasto" : "Novo Gasto"}</h2>
+              <button onClick={onClose} className="p-2 glass rounded-xl hover:bg-white/5 transition-colors">
+                <X className="w-4 h-4 text-white/40" />
               </button>
             </div>
 
-            <div className="space-y-8">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Descrição</label>
+            <div className="space-y-3">
+              {/* 1. Descrição */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Descrição</label>
                 <input
                   autoFocus
                   type="text"
@@ -3109,66 +3110,22 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                     if (formError) setFormError(null);
                   }}
                   placeholder="Descreva o nome do gasto..."
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  spellCheck
+                  lang="pt-BR"
                   className={cn(
-                    "w-full h-16 glass rounded-2xl px-6 text-xl outline-none focus:border-blue-500/50 transition-colors placeholder:text-white/5 font-bold",
+                    "w-full h-11 glass rounded-xl px-4 text-sm outline-none focus:border-blue-500/50 transition-colors placeholder:text-white/10 font-bold",
                     formError && !name.trim() && "border-red-500/50"
                   )}
                 />
               </div>
 
-              <div className="space-y-3 relative">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Categoria de Custo</label>
-                
-                <button
-                  type="button"
-                  onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                  className="w-full h-16 glass rounded-2xl px-6 flex items-center justify-between hover:bg-white/5 transition-all text-left"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-3 h-3 rounded-full shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: selectedCategory.color, color: selectedCategory.color }} />
-                    <span className="font-bold">{selectedCategory.name}</span>
-                  </div>
-                  <ChevronDown className={cn("w-5 h-5 text-white/20 transition-transform duration-300", isCategoryDropdownOpen && "rotate-180")} />
-                </button>
-
-                <AnimatePresence>
-                  {isCategoryDropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute top-full left-0 right-0 mt-2 p-3 surface-dropdown border border-white/20 rounded-[28px] z-[120] backdrop-blur-3xl"
-                    >
-                      <div className="max-h-64 overflow-y-auto space-y-1 pr-2">
-                        {categories.map(cat => (
-                          <button
-                            key={cat.name}
-                            type="button"
-                            onClick={() => {
-                              setCategory(cat.name);
-                              setIsCategoryDropdownOpen(false);
-                            }}
-                            className={cn(
-                              "w-full h-12 rounded-xl flex items-center px-4 gap-4 transition-all duration-200",
-                              category === cat.name 
-                                ? "bg-white/10 text-white shadow-lg" 
-                                : "text-white/60 hover:text-white hover:bg-white/5"
-                            )}
-                          >
-                            <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_10px_currentcolor]" style={{ backgroundColor: cat.color, color: cat.color }} />
-                            <span className="text-sm font-bold">{cat.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Valor Unitário</label>
+              {/* 2. Valor */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Valor</label>
                 <div className="relative">
-                   <span className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 font-bold text-xl">R$</span>
+                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/25 font-bold text-sm">R$</span>
                    <input
                     type="number"
                     value={value}
@@ -3179,41 +3136,110 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                     }}
                     placeholder="0,00"
                     className={cn(
-                      "w-full h-16 glass rounded-2xl pl-16 pr-6 text-3xl font-black outline-none focus:border-blue-500/50 transition-colors placeholder:text-white/5",
+                      "w-full h-11 glass rounded-xl pl-11 pr-4 text-lg font-black outline-none focus:border-blue-500/50 transition-colors placeholder:text-white/10",
                       formError && !value && "border-red-500/50"
                     )}
                   />
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Data do Gasto</label>
+              {/* 3. Categoria (começa vazia) */}
+              <div className="space-y-1.5 relative">
+                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Categoria</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCategoryDropdownOpen(!isCategoryDropdownOpen);
+                    if (formError) setFormError(null);
+                  }}
+                  className={cn(
+                    "w-full h-11 glass rounded-xl px-4 flex items-center justify-between hover:bg-white/5 transition-all text-left",
+                    formError && !category && "border-red-500/50"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    {selectedCategory ? (
+                      <>
+                        <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: selectedCategory.color, color: selectedCategory.color }} />
+                        <span className="font-bold text-sm">{selectedCategory.name}</span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-white/30 font-medium">Selecione uma categoria</span>
+                    )}
+                  </div>
+                  <ChevronDown className={cn("w-4 h-4 text-white/20 transition-transform duration-300", isCategoryDropdownOpen && "rotate-180")} />
+                </button>
+
+                <AnimatePresence>
+                  {isCategoryDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute top-full left-0 right-0 mt-2 p-2 surface-dropdown border border-white/20 rounded-2xl z-[120] backdrop-blur-3xl"
+                    >
+                      <div className="max-h-56 overflow-y-auto space-y-0.5 pr-1">
+                        {categories.map(cat => (
+                          <button
+                            key={cat.name}
+                            type="button"
+                            onClick={() => {
+                              setCategory(cat.name);
+                              setIsCategoryDropdownOpen(false);
+                            }}
+                            className={cn(
+                              "w-full h-10 rounded-lg flex items-center px-3 gap-3 transition-all duration-200",
+                              category === cat.name
+                                ? "bg-white/10 text-white shadow-lg"
+                                : "text-white/60 hover:text-white hover:bg-white/5"
+                            )}
+                          >
+                            <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: cat.color, color: cat.color }} />
+                            <span className="text-xs font-bold">{cat.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* 4. Data */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Data</label>
                 <input
                   type="date"
                   value={expenseDate}
                   max={todayISO}
                   onFocus={keepFieldVisible}
                   onChange={(e) => setExpenseDate(e.target.value)}
-                  className="w-full h-16 glass rounded-2xl px-6 text-base font-bold outline-none focus:border-blue-500/50 transition-colors"
+                  className="w-full h-11 glass rounded-xl px-4 text-sm font-bold outline-none focus:border-blue-500/50 transition-colors"
                 />
               </div>
 
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Observações Adicionais</label>
+              {/* 5. Observações */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Observações</label>
                 <textarea
                   value={note}
                   onFocus={keepFieldVisible}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Detalhes que ajudam no fechamento..."
-                  className="w-full h-32 glass rounded-3xl p-6 outline-none focus:border-blue-500/50 transition-colors resize-none placeholder:text-white/5 font-medium text-base"
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  spellCheck
+                  lang="pt-BR"
+                  rows={2}
+                  className="w-full glass rounded-xl px-4 py-2.5 outline-none focus:border-blue-500/50 transition-colors resize-none placeholder:text-white/10 text-xs"
                 />
               </div>
 
-              <div className="space-y-3">
+              {/* 6. Comprovantes */}
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-1">Comprovantes Fiscais</label>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Comprovantes</label>
                   {attachmentUrls.length > 0 && (
-                    <span className="text-[10px] font-bold text-emerald-400/70 mr-1">{attachmentUrls.length} anexado{attachmentUrls.length > 1 ? 's' : ''}</span>
+                    <span className="text-[9px] font-bold text-emerald-400/70 mr-1">{attachmentUrls.length} anexado{attachmentUrls.length > 1 ? 's' : ''}</span>
                   )}
                 </div>
 
@@ -3266,24 +3292,24 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     disabled={uploadingFile}
                     onClick={() => fileInputRef.current?.click()}
-                    className="h-16 glass rounded-2xl text-white/40 hover:text-white hover:border-white/20 transition-all border-dashed flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest cursor-pointer group disabled:opacity-50"
+                    className="h-11 glass rounded-xl text-white/40 hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-widest cursor-pointer group disabled:opacity-50"
                   >
-                    <Paperclip className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-blue-400 transition-all" />
-                    <span>{uploadingFile ? 'Enviando...' : attachmentUrls.length ? 'Adicionar Outro' : 'Anexar Foto ou PDF'}</span>
+                    <Paperclip className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 group-hover:text-blue-400 transition-all" />
+                    <span>{uploadingFile ? 'Enviando...' : attachmentUrls.length ? 'Outro' : 'Anexar / PDF'}</span>
                   </button>
                   <button
                     type="button"
                     disabled={uploadingFile}
                     onClick={() => cameraInputRef.current?.click()}
-                    className="h-16 glass rounded-2xl text-white/40 hover:text-white hover:border-white/20 transition-all border-dashed flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest cursor-pointer group disabled:opacity-50"
+                    className="h-11 glass rounded-xl text-white/40 hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-widest cursor-pointer group disabled:opacity-50"
                   >
-                    <Camera className="w-4 h-4 opacity-40 group-hover:opacity-100 group-hover:text-emerald-400 transition-all" />
-                    <span>{uploadingFile ? 'Enviando...' : attachmentUrls.length ? 'Tirar Outra' : 'Tirar Foto'}</span>
+                    <Camera className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 group-hover:text-emerald-400 transition-all" />
+                    <span>{uploadingFile ? 'Enviando...' : attachmentUrls.length ? 'Outra Foto' : 'Tirar Foto'}</span>
                   </button>
                 </div>
 
@@ -3306,8 +3332,8 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
               </div>
 
               {formError && (
-                <div className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm font-bold">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-bold">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                   {formError}
                 </div>
               )}
@@ -3315,7 +3341,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
               <button
                 onClick={handleSave}
                 disabled={uploadingFile}
-                className="w-full h-20 btn-gradient text-white font-black rounded-3xl text-xl shadow-blue-500/40 mt-4 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                className="w-full h-14 btn-gradient text-white font-black rounded-2xl text-sm shadow-blue-500/40 mt-2 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 {uploadingFile ? "Enviando comprovante..." : expense ? "Salvar Alterações" : "Confirmar Lançamento"}
               </button>
