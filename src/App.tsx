@@ -3085,14 +3085,18 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
       />
       <div
         ref={sheetRef}
-        className="fixed bottom-0 left-0 right-0 glass rounded-t-[32px] p-5 sm:p-6 z-[101] max-h-[92vh] overflow-y-auto overscroll-contain border-t border-white/10"
+        className="fixed bottom-0 left-0 right-0 glass rounded-t-[32px] px-5 sm:px-6 pt-2 pb-4 sm:pb-5 z-[101] max-h-[92vh] overflow-y-auto overscroll-contain border-t border-white/10"
       >
-            <div className="w-10 h-1.5 bg-white/10 rounded-full mx-auto mb-4" />
+            <div className="w-10 h-1 bg-white/10 rounded-full mx-auto mb-1" />
 
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-black tracking-tight">{expense ? "Editar Gasto" : "Novo Gasto"}</h2>
-              <button onClick={onClose} className="p-2 glass rounded-xl hover:bg-white/5 transition-colors">
-                <X className="w-4 h-4 text-white/40" />
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-black tracking-tight">{expense ? "Editar Gasto" : "Novo Gasto"}</h2>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-xl bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 transition-colors"
+                aria-label="Fechar"
+              >
+                <X className="w-4 h-4 text-red-400" />
               </button>
             </div>
 
@@ -3343,7 +3347,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
               <button
                 onClick={handleSave}
                 disabled={uploadingFile}
-                className="w-full h-14 btn-gradient text-white font-black rounded-2xl text-sm shadow-blue-500/40 mt-2 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                className="w-full h-14 bg-gradient-to-r from-emerald-500 to-green-600 hover:brightness-110 text-white font-black rounded-2xl text-sm shadow-lg shadow-emerald-500/40 mt-2 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 {uploadingFile ? "Enviando comprovante..." : expense ? "Salvar Alterações" : "Confirmar Lançamento"}
               </button>
