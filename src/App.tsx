@@ -3152,6 +3152,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                   <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Categoria</label>
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       setIsCategoryDropdownOpen(!isCategoryDropdownOpen);
                       if (formError) setFormError(null);
@@ -3187,6 +3188,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                             <button
                               key={cat.name}
                               type="button"
+                              onMouseDown={(e) => e.preventDefault()}
                               onClick={() => {
                                 setCategory(cat.name);
                                 setIsCategoryDropdownOpen(false);
