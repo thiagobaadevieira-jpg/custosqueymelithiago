@@ -3317,7 +3317,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept="image/*,application/pdf"
+                  accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.pdf,application/pdf,image/jpeg,image/png,image/webp,image/gif"
                   multiple
                   className="hidden"
                 />
