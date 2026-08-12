@@ -3205,34 +3205,35 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                 </div>
               </div>
 
-              {/* 4. Data */}
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Data</label>
-                <input
-                  type="date"
-                  value={expenseDate}
-                  max={todayISO}
-                  onFocus={keepFieldVisible}
-                  onChange={(e) => setExpenseDate(e.target.value)}
-                  className="w-full h-11 glass rounded-xl px-4 text-sm font-bold outline-none focus:border-blue-500/50 transition-colors"
-                />
-              </div>
+              {/* 4 + 5. Data e Observações lado a lado */}
+              <div className="grid grid-cols-2 gap-2 items-start">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Data</label>
+                  <input
+                    type="date"
+                    value={expenseDate}
+                    max={todayISO}
+                    onFocus={keepFieldVisible}
+                    onChange={(e) => setExpenseDate(e.target.value)}
+                    className="w-full h-11 glass rounded-xl px-3 text-xs font-bold outline-none focus:border-blue-500/50 transition-colors"
+                  />
+                </div>
 
-              {/* 5. Observações */}
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Observações</label>
-                <textarea
-                  value={note}
-                  onFocus={keepFieldVisible}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Detalhes que ajudam no fechamento..."
-                  autoCorrect="on"
-                  autoCapitalize="sentences"
-                  spellCheck
-                  lang="pt-BR"
-                  rows={2}
-                  className="w-full glass rounded-xl px-4 py-2.5 outline-none focus:border-blue-500/50 transition-colors resize-none placeholder:text-white/10 text-xs"
-                />
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Observações</label>
+                  <textarea
+                    value={note}
+                    onFocus={keepFieldVisible}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Detalhes..."
+                    autoCorrect="on"
+                    autoCapitalize="sentences"
+                    spellCheck
+                    lang="pt-BR"
+                    rows={1}
+                    className="w-full h-11 glass rounded-xl px-3 py-3 outline-none focus:border-blue-500/50 transition-colors resize-none placeholder:text-white/10 text-xs leading-tight"
+                  />
+                </div>
               </div>
 
               {/* 6. Comprovantes */}
