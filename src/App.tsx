@@ -3304,6 +3304,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                   <button
                     type="button"
                     disabled={uploadingFile}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => fileInputRef.current?.click()}
                     className="h-11 glass rounded-xl text-white/40 hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-widest cursor-pointer group disabled:opacity-50"
                   >
@@ -3313,6 +3314,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                   <button
                     type="button"
                     disabled={uploadingFile}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => cameraInputRef.current?.click()}
                     className="h-11 glass rounded-xl text-white/40 hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-widest cursor-pointer group disabled:opacity-50"
                   >
