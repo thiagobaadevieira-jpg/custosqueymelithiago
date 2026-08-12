@@ -3096,7 +3096,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-[11px]">
               {/* 1. Descrição */}
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Descrição</label>
