@@ -3121,87 +3121,88 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                 />
               </div>
 
-              {/* 2. Valor */}
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Valor</label>
-                <div className="relative">
-                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/25 font-bold text-sm">R$</span>
-                   <input
-                    type="number"
-                    value={value}
-                    onFocus={keepFieldVisible}
-                    onChange={(e) => {
-                      setValue(e.target.value);
+              {/* 2 + 3. Valor e Categoria lado a lado */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Valor</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 font-bold text-xs">R$</span>
+                    <input
+                      type="number"
+                      value={value}
+                      onFocus={keepFieldVisible}
+                      onChange={(e) => {
+                        setValue(e.target.value);
+                        if (formError) setFormError(null);
+                      }}
+                      placeholder="0,00"
+                      className={cn(
+                        "w-full h-11 glass rounded-xl pl-9 pr-3 text-base font-black outline-none focus:border-blue-500/50 transition-colors placeholder:text-white/10",
+                        formError && !value && "border-red-500/50"
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 relative">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Categoria</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCategoryDropdownOpen(!isCategoryDropdownOpen);
                       if (formError) setFormError(null);
                     }}
-                    placeholder="0,00"
                     className={cn(
-                      "w-full h-11 glass rounded-xl pl-11 pr-4 text-lg font-black outline-none focus:border-blue-500/50 transition-colors placeholder:text-white/10",
-                      formError && !value && "border-red-500/50"
+                      "w-full h-11 glass rounded-xl px-3 flex items-center justify-between hover:bg-white/5 transition-all text-left",
+                      formError && !category && "border-red-500/50"
                     )}
-                  />
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {selectedCategory ? (
+                        <>
+                          <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentcolor] shrink-0" style={{ backgroundColor: selectedCategory.color, color: selectedCategory.color }} />
+                          <span className="font-bold text-xs truncate">{selectedCategory.name}</span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-white/30 font-medium truncate">Selecione...</span>
+                      )}
+                    </div>
+                    <ChevronDown className={cn("w-4 h-4 text-white/20 transition-transform duration-300 shrink-0", isCategoryDropdownOpen && "rotate-180")} />
+                  </button>
+
+                  <AnimatePresence>
+                    {isCategoryDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute top-full left-0 right-0 mt-2 p-2 surface-dropdown border border-white/20 rounded-2xl z-[120] backdrop-blur-3xl"
+                      >
+                        <div className="max-h-56 overflow-y-auto space-y-0.5 pr-1">
+                          {categories.map(cat => (
+                            <button
+                              key={cat.name}
+                              type="button"
+                              onClick={() => {
+                                setCategory(cat.name);
+                                setIsCategoryDropdownOpen(false);
+                              }}
+                              className={cn(
+                                "w-full h-10 rounded-lg flex items-center px-3 gap-3 transition-all duration-200",
+                                category === cat.name
+                                  ? "bg-white/10 text-white shadow-lg"
+                                  : "text-white/60 hover:text-white hover:bg-white/5"
+                              )}
+                            >
+                              <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: cat.color, color: cat.color }} />
+                              <span className="text-xs font-bold">{cat.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </div>
-
-              {/* 3. Categoria (começa vazia) */}
-              <div className="space-y-1.5 relative">
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Categoria</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCategoryDropdownOpen(!isCategoryDropdownOpen);
-                    if (formError) setFormError(null);
-                  }}
-                  className={cn(
-                    "w-full h-11 glass rounded-xl px-4 flex items-center justify-between hover:bg-white/5 transition-all text-left",
-                    formError && !category && "border-red-500/50"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    {selectedCategory ? (
-                      <>
-                        <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: selectedCategory.color, color: selectedCategory.color }} />
-                        <span className="font-bold text-sm">{selectedCategory.name}</span>
-                      </>
-                    ) : (
-                      <span className="text-sm text-white/30 font-medium">Selecione uma categoria</span>
-                    )}
-                  </div>
-                  <ChevronDown className={cn("w-4 h-4 text-white/20 transition-transform duration-300", isCategoryDropdownOpen && "rotate-180")} />
-                </button>
-
-                <AnimatePresence>
-                  {isCategoryDropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute top-full left-0 right-0 mt-2 p-2 surface-dropdown border border-white/20 rounded-2xl z-[120] backdrop-blur-3xl"
-                    >
-                      <div className="max-h-56 overflow-y-auto space-y-0.5 pr-1">
-                        {categories.map(cat => (
-                          <button
-                            key={cat.name}
-                            type="button"
-                            onClick={() => {
-                              setCategory(cat.name);
-                              setIsCategoryDropdownOpen(false);
-                            }}
-                            className={cn(
-                              "w-full h-10 rounded-lg flex items-center px-3 gap-3 transition-all duration-200",
-                              category === cat.name
-                                ? "bg-white/10 text-white shadow-lg"
-                                : "text-white/60 hover:text-white hover:bg-white/5"
-                            )}
-                          >
-                            <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: cat.color, color: cat.color }} />
-                            <span className="text-xs font-bold">{cat.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
               {/* 4. Data */}
