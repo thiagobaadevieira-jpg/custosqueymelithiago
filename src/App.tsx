@@ -3103,28 +3103,42 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
             </div>
 
             <div className="space-y-[10px]">
-              {/* 1. Descrição */}
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Descrição</label>
-                <input
-                  autoFocus
-                  type="text"
-                  value={name}
-                  onFocus={(e) => { keepFieldVisible(e); setIsCategoryDropdownOpen(false); }}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (formError) setFormError(null);
-                  }}
-                  placeholder="Descreva o nome do gasto..."
-                  autoCorrect="on"
-                  autoCapitalize="sentences"
-                  spellCheck
-                  lang="pt-BR"
-                  className={cn(
-                    "w-full h-11 glass rounded-xl px-4 text-sm outline-none focus:border-blue-500/50 transition-colors placeholder:text-white/10 font-bold",
-                    formError && !name.trim() && "border-red-500/50"
-                  )}
-                />
+              {/* 1. Descrição + Data lado a lado */}
+              <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
+                <div className="space-y-1.5 min-w-0">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Descrição</label>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={name}
+                    onFocus={(e) => { keepFieldVisible(e); setIsCategoryDropdownOpen(false); }}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (formError) setFormError(null);
+                    }}
+                    placeholder="Descreva o nome do gasto..."
+                    autoCorrect="on"
+                    autoCapitalize="sentences"
+                    spellCheck
+                    lang="pt-BR"
+                    className={cn(
+                      "w-full h-11 glass rounded-xl px-4 text-sm outline-none focus:border-blue-500/50 transition-colors placeholder:text-white/10 font-bold",
+                      formError && !name.trim() && "border-red-500/50"
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-1.5 shrink-0">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Data</label>
+                  <input
+                    type="date"
+                    value={expenseDate}
+                    max={todayISO}
+                    onFocus={(e) => { keepFieldVisible(e); setIsCategoryDropdownOpen(false); }}
+                    onChange={(e) => setExpenseDate(e.target.value)}
+                    className="w-[100px] h-11 glass rounded-xl px-1.5 text-[10px] font-bold outline-none focus:border-blue-500/50 transition-colors"
+                  />
+                </div>
               </div>
 
               {/* 2 + 3. Valor e Categoria lado a lado */}
