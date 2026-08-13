@@ -2987,6 +2987,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
       setExpenseDate(expense.expenseDate || todayISO);
       setFormError(null);
       setPendingPhotos([]);
+      setIsCategoryDropdownOpen(false);
     } else if (isOpen) {
       setName("");
       setValue("");
@@ -2996,6 +2997,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
       setExpenseDate(todayISO);
       setFormError(null);
       setPendingPhotos([]);
+      setIsCategoryDropdownOpen(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expense, isOpen]);
@@ -3108,7 +3110,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                   autoFocus
                   type="text"
                   value={name}
-                  onFocus={keepFieldVisible}
+                  onFocus={(e) => { keepFieldVisible(e); setIsCategoryDropdownOpen(false); }}
                   onChange={(e) => {
                     setName(e.target.value);
                     if (formError) setFormError(null);
@@ -3134,7 +3136,7 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                     <input
                       type="number"
                       value={value}
-                      onFocus={keepFieldVisible}
+                      onFocus={(e) => { keepFieldVisible(e); setIsCategoryDropdownOpen(false); }}
                       onChange={(e) => {
                         setValue(e.target.value);
                         if (formError) setFormError(null);
