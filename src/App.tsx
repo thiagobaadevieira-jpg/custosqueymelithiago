@@ -3104,9 +3104,9 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
 
             <div className="space-y-[10px]">
               {/* 1. Descrição + Data lado a lado */}
-              <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
+              <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
                 <div className="space-y-1.5 min-w-0">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Descrição</label>
+                  <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 ml-1 leading-none h-3">Descrição</label>
                   <input
                     autoFocus
                     type="text"
@@ -3128,8 +3128,8 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                   />
                 </div>
 
-                <div className="space-y-1.5 shrink-0 flex flex-col">
-                  <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Data</label>
+                <div className="space-y-1.5 shrink-0">
+                  <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 ml-1 leading-none h-3">Data</label>
                   <input
                     type="date"
                     value={expenseDate}
