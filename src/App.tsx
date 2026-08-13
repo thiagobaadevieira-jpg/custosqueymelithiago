@@ -3211,36 +3211,8 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                 </div>
               </div>
 
-              {/* 4 + 5. Data e Observações lado a lado */}
-              <div className="grid grid-cols-2 gap-2 items-start">
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Data</label>
-                  <input
-                    type="date"
-                    value={expenseDate}
-                    max={todayISO}
-                    onFocus={keepFieldVisible}
-                    onChange={(e) => setExpenseDate(e.target.value)}
-                    className="w-full h-11 glass rounded-xl px-3 text-xs font-bold outline-none focus:border-blue-500/50 transition-colors"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Observações</label>
-                  <textarea
-                    value={note}
-                    onFocus={keepFieldVisible}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="Detalhes..."
-                    autoCorrect="on"
-                    autoCapitalize="sentences"
-                    spellCheck
-                    lang="pt-BR"
-                    rows={1}
-                    className="w-full h-11 glass rounded-xl px-3 py-3 outline-none focus:border-blue-500/50 transition-colors resize-none placeholder:text-white/10 text-xs leading-tight"
-                  />
-                </div>
-              </div>
+              {/* Data e Observações ocultos — usam default (hoje / vazio).
+                  Editar depois no ExpenseDetailModal se precisar ajustar. */}
 
               {/* 6. Comprovantes */}
               <div className="space-y-1.5">
