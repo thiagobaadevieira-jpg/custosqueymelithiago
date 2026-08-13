@@ -3128,15 +3128,15 @@ const ExpenseModal = ({ isOpen, onClose, user, expense, onSave, categories }: {
                   />
                 </div>
 
-                <div className="space-y-1.5 shrink-0">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Data</label>
+                <div className="space-y-1.5 shrink-0 flex flex-col">
+                  <label className="block text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Data</label>
                   <input
                     type="date"
                     value={expenseDate}
                     max={todayISO}
                     onFocus={(e) => { keepFieldVisible(e); setIsCategoryDropdownOpen(false); }}
                     onChange={(e) => setExpenseDate(e.target.value)}
-                    className="w-[100px] h-11 glass rounded-xl px-1.5 text-[10px] font-bold outline-none focus:border-blue-500/50 transition-colors"
+                    className="w-[120px] h-11 glass rounded-xl px-2 text-[11px] font-bold outline-none focus:border-blue-500/50 transition-colors"
                   />
                 </div>
               </div>
