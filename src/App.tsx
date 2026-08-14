@@ -5062,7 +5062,11 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                               : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
                             const owner = users.find(u => u.id === e.userId);
                             return (
-                              <div key={e.id} className="glass rounded-2xl p-4 sm:p-5">
+                              <button
+                                key={e.id}
+                                onClick={() => setSelectedExpense(e)}
+                                className="w-full text-left glass rounded-2xl p-4 sm:p-5 hover:bg-white/5 active:scale-[0.99] transition-all"
+                              >
                                 <div className="flex justify-between items-start gap-3">
                                   <div className="min-w-0 flex-1">
                                     <p className="text-sm font-bold text-white break-words">{e.name}</p>
@@ -5095,7 +5099,7 @@ const DashboardScreen = ({ user, onLogout, onProfileUpdate, theme, onToggleTheme
                                     </p>
                                   </div>
                                 </div>
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
